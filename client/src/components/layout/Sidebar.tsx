@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { Home, Users, CheckSquare, Settings, LogOut, Handshake } from 'lucide-react';
 import { useLogoutConfirm } from '@/hooks/useLogoutConfirm';
 import { SyncIndicator } from './SyncIndicator';
+import { DownloadAppButton } from './DownloadAppButton';
 
 const MAIN_ITEMS = [
   { to: '/', label: 'Home', icon: Home, end: true },
@@ -55,6 +56,10 @@ export function Sidebar() {
           <LogOut size={20} aria-hidden="true" />
           Sair
         </button>
+
+        <div className="mt-3 border-t border-white/10 pt-3">
+          <DownloadAppButton />
+        </div>
       </div>
       {dialog}
     </aside>
