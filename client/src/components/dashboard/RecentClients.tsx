@@ -32,10 +32,10 @@ export function RecentClients({ clients }: { clients: Client[] }) {
       ) : (
         <ul className="mt-4 flex flex-col divide-y divide-border">
           {clients.map((client) => (
-            <li key={client._id}>
+            <li key={client.id}>
               <button
                 type="button"
-                onClick={() => navigate(`/clientes/${client._id}`)}
+                onClick={() => navigate(`/clientes/${client.id}`)}
                 className="flex w-full items-center gap-3 py-3 text-left transition-colors hover:bg-bg-app/60 rounded-md px-1 -mx-1"
               >
                 <Avatar

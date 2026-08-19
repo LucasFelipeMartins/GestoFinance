@@ -3,18 +3,13 @@ import { TaskForm, TaskFormValues } from './TaskForm';
 import { useCreateTask, useUpdateTask } from '@/hooks/useTasks';
 import { useToast } from '@/context/ToastContext';
 import { getApiErrorMessage } from '@/services/api';
-import { Task } from '@/types';
+import { TaskWithClient } from '@/types';
 
 interface TaskFormModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  task?: Task;
+  task?: TaskWithClient;
   lockedClientId?: string;
-}
-
-function getClientId(task?: Task): string | undefined {
-  if (!task?.clientId) return undefined;
-  return typeof task.clientId === 'string' ? task.clientId : task.clientId._id;
 }
 
 function toDateInputValue(dueDate?: string): string {
@@ -42,7 +37,7 @@ export function TaskFormModal({ open, onOpenChange, task, lockedClientId }: Task
 
     try {
       if (isEditing && task) {
-        await updateTask.mutateAsync({ id: task._id, payload });
+        await updateTask.mutateAsync({ id: task.id, payload });
       } else {
         await createTask.mutateAsync(payload);
       }
@@ -61,10 +56,10 @@ export function TaskFormModal({ open, onOpenChange, task, lockedClientId }: Task
       preventOutsideClose={isSubmitting}
     >
       <TaskForm
-        key={task?._id ?? 'new'}
+        key={task?.id ?? 'new'}
         defaultValues={
           task
-            ? { ...task, clientId: getClientId(task), dueDate: toDateInputValue(task.dueDate), description: task.description ?? '' }
+            ? { ...task, dueDate: toDateInputValue(task.dueDate), description: task.description ?? '' }
             : { clientId: lockedClientId }
         }
         lockedClientId={lockedClientId}

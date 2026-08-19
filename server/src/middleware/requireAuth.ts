@@ -11,8 +11,18 @@ declare global {
   }
 }
 
+function extractToken(req: Request): string | undefined {
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) {
+    return authHeader.slice('Bearer '.length);
+  }
+  return req.cookies?.token as string | undefined;
+}
+
 export function requireAuth(req: Request, _res: Response, next: NextFunction): void {
-  const token = req.cookies?.token as string | undefined;
+  // Web uses the httpOnly cookie; the native (Capacitor) app uses a Bearer
+  // token instead, since cross-site cookies from a WebView are unreliable.
+  const token = extractToken(req);
   if (!token) {
     throw ApiError.unauthorized('Sessão não encontrada. Faça login novamente.');
   }

@@ -1,23 +1,21 @@
-import { Request, Response } from 'express';
-import { Client } from '../models/Client';
-import { Task } from '../models/Task';
-import { asyncHandler } from '../utils/asyncHandler';
-import { defaultTaskSort } from '../utils/taskSort';
+import { clientRepository } from './clientRepository';
+import { taskRepository } from './taskRepository';
+import { defaultTaskSort } from '@/utils/taskSort';
+import { isOverdue } from '@/utils/formatters';
+import { DashboardSummary } from '@/types';
 
 function rate(part: number, total: number): number {
   if (total === 0) return 0;
   return Math.round((part / total) * 100);
 }
 
-export const getDashboardSummary = asyncHandler(async (req: Request, res: Response) => {
-  const userId = req.userId;
-
+/** Same shape the old server /api/dashboard/summary returned — now computed
+ * locally so the Home page works offline. */
+async function summary(): Promise<DashboardSummary> {
   const [clients, tasks] = await Promise.all([
-    Client.find({ userId }).sort({ createdAt: -1 }).lean(),
-    Task.find({ userId }).populate('clientId', 'name avatarUrl initials'),
+    clientRepository.list({ sort: 'createdAt', order: 'desc' }),
+    taskRepository.list(),
   ]);
-
-  const now = new Date();
 
   const totalClients = clients.length;
   const completedClients = clients.filter((c) => c.status === 'completed').length;
@@ -27,14 +25,12 @@ export const getDashboardSummary = asyncHandler(async (req: Request, res: Respon
   const completedTasks = tasks.filter((t) => t.status === 'completed').length;
   const pendingTasks = tasks.filter((t) => t.status === 'pending').length;
   const inProgressTasks = tasks.filter((t) => t.status === 'in-progress').length;
-  const overdueTasks = tasks.filter(
-    (t) => t.dueDate && t.dueDate < now && t.status !== 'completed'
-  ).length;
+  const overdueTasks = tasks.filter((t) => isOverdue(t.dueDate, t.status)).length;
 
   const recentClients = clients.slice(0, 5);
   const recentTasks = [...tasks].sort(defaultTaskSort).slice(0, 5);
 
-  res.json({
+  return {
     clients: {
       total: totalClients,
       completed: completedClients,
@@ -51,5 +47,7 @@ export const getDashboardSummary = asyncHandler(async (req: Request, res: Respon
     },
     recentClients,
     recentTasks,
-  });
-});
+  };
+}
+
+export const dashboardRepository = { summary };

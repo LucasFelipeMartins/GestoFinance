@@ -19,7 +19,7 @@ export function DeleteClientDialog({ client, onOpenChange, onDeleted }: DeleteCl
   const handleConfirm = async () => {
     if (!client) return;
     try {
-      await deleteClient.mutateAsync({ id: client._id, tasksAction });
+      await deleteClient.mutateAsync({ id: client.id, tasksAction });
       toast.success('Cliente removido.');
       onOpenChange(false);
       onDeleted?.();

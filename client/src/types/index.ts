@@ -23,8 +23,14 @@ export interface User {
   avatarUrl?: string;
 }
 
+/**
+ * `id` is a UUID generated on the device at creation time — it's the
+ * canonical identifier everywhere (local DB, API, routes), not a MongoDB
+ * _id. That's what makes offline creation possible: the id never changes
+ * once assigned, whether or not the record has synced yet.
+ */
 export interface Client {
-  _id: string;
+  id: string;
   name: string;
   phone: string;
   service: string;
@@ -38,23 +44,29 @@ export interface Client {
 }
 
 export interface TaskClientRef {
-  _id: string;
+  id: string;
   name: string;
   avatarUrl?: string;
   initials: string;
 }
 
 export interface Task {
-  _id: string;
+  id: string;
   title: string;
   description?: string;
-  clientId?: TaskClientRef | string;
+  /** References Client.id. Resolve display info via `client` (joined
+   * locally), not by fetching — it must work offline. */
+  clientId?: string;
   dueDate?: string;
   priority: Priority;
   status: EntityStatus;
   createdAt: string;
   updatedAt: string;
   completedAt?: string;
+}
+
+export interface TaskWithClient extends Task {
+  client?: TaskClientRef;
 }
 
 export interface DashboardSummary {
@@ -73,5 +85,5 @@ export interface DashboardSummary {
     completionRate: number;
   };
   recentClients: Client[];
-  recentTasks: Task[];
+  recentTasks: TaskWithClient[];
 }

@@ -10,3 +10,16 @@ server/uploads/*
 .DS_Store
 .claude/
 .vercel/
+
+# Capacitor / Android (client/android) — the native project itself is
+# committed, but generated/machine-specific parts are not.
+client/android/local.properties
+client/android/.gradle/
+client/android/captures/
+client/android/.idea/
+client/android/app/release/
+client/android/app/debug/
+client/android/app/src/main/assets/public/
+client/android/app/src/main/assets/capacitor.config.json
+*.iml
+

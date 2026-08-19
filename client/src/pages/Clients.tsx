@@ -78,7 +78,7 @@ export default function Clients() {
 
   const handleComplete = async (client: Client) => {
     try {
-      await updateStatus.mutateAsync({ id: client._id, status: 'completed' });
+      await updateStatus.mutateAsync({ id: client.id, status: 'completed' });
       toast.success('Cliente concluído.');
     } catch (error) {
       toast.error(getApiErrorMessage(error));
@@ -165,7 +165,7 @@ export default function Clients() {
           </div>
           <div className="flex flex-col gap-3 lg:hidden">
             {clients.map((client) => (
-              <ClientCardMobile key={client._id} client={client} onEdit={openEdit} onComplete={handleComplete} onDelete={setDeletingClient} />
+              <ClientCardMobile key={client.id} client={client} onEdit={openEdit} onComplete={handleComplete} onDelete={setDeletingClient} />
             ))}
           </div>
         </>

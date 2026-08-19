@@ -57,7 +57,7 @@ export function TaskForm({
 
   const clientOptions = [
     { value: '', label: 'Nenhum cliente' },
-    ...(clients ?? []).map((c) => ({ value: c._id, label: c.name })),
+    ...(clients ?? []).map((c) => ({ value: c.id, label: c.name })),
   ];
 
   return (

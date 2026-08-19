@@ -4,9 +4,12 @@ import { Card } from '@/components/ui/Card';
 import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/context/AuthContext';
+import { useLogoutConfirm } from '@/hooks/useLogoutConfirm';
+import { SyncIndicator } from '@/components/layout/SyncIndicator';
 
 export default function Settings() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
+  const { requestLogout, dialog } = useLogoutConfirm();
 
   if (!user) return null;
 
@@ -51,10 +54,15 @@ export default function Settings() {
           Esta conta é individual: apenas você tem acesso aos clientes e tarefas cadastrados aqui.
         </p>
 
-        <Button leftIcon={<LogOut size={18} />} variant="danger" className="mt-6 w-full" onClick={() => logout()}>
+        <div className="mt-6 flex justify-center">
+          <SyncIndicator variant="header" />
+        </div>
+
+        <Button leftIcon={<LogOut size={18} />} variant="danger" className="mt-4 w-full" onClick={requestLogout}>
           Sair da conta
         </Button>
       </Card>
+      {dialog}
     </PageContainer>
   );
 }

@@ -12,15 +12,21 @@ export interface LoginPayload {
   password: string;
 }
 
+interface AuthResponse {
+  user: User;
+  /** Only meaningful for the native app — see utils/tokenStorage.ts. */
+  token?: string;
+}
+
 export const authService = {
-  async register(payload: RegisterPayload): Promise<User> {
-    const { data } = await api.post<{ user: User }>('/auth/register', payload);
-    return data.user;
+  async register(payload: RegisterPayload): Promise<AuthResponse> {
+    const { data } = await api.post<AuthResponse>('/auth/register', payload);
+    return data;
   },
 
-  async login(payload: LoginPayload): Promise<User> {
-    const { data } = await api.post<{ user: User }>('/auth/login', payload);
-    return data.user;
+  async login(payload: LoginPayload): Promise<AuthResponse> {
+    const { data } = await api.post<AuthResponse>('/auth/login', payload);
+    return data;
   },
 
   async logout(): Promise<void> {

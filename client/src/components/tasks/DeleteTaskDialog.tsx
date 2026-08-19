@@ -17,7 +17,7 @@ export function DeleteTaskDialog({ task, onOpenChange, onDeleted }: DeleteTaskDi
   const handleConfirm = async () => {
     if (!task) return;
     try {
-      await deleteTask.mutateAsync(task._id);
+      await deleteTask.mutateAsync(task.id);
       toast.success('Tarefa removida.');
       onOpenChange(false);
       onDeleted?.();

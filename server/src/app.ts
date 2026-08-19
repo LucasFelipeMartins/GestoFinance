@@ -13,7 +13,20 @@ import { asyncHandler } from './utils/asyncHandler';
 const app = express();
 
 app.use(helmet({ crossOriginResourcePolicy: false }));
-app.use(cors({ origin: env.clientOrigin, credentials: true }));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // No Origin header (native app requests, curl, server-to-server) or an
+      // allow-listed origin: allow. Anything else: reject.
+      if (!origin || env.clientOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+  })
+);
 app.use(cookieParser());
 app.use(express.json());
 if (!env.isProduction) {

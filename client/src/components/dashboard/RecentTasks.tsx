@@ -7,17 +7,17 @@ import { PriorityFlag } from '@/components/ui/PriorityFlag';
 import { useUpdateTaskStatus } from '@/hooks/useTasks';
 import { useToast } from '@/context/ToastContext';
 import { getApiErrorMessage } from '@/services/api';
-import { Task } from '@/types';
+import { TaskWithClient } from '@/types';
 import { formatRelativeDate, isOverdue } from '@/utils/formatters';
 
-export function RecentTasks({ tasks }: { tasks: Task[] }) {
+export function RecentTasks({ tasks }: { tasks: TaskWithClient[] }) {
   const navigate = useNavigate();
   const updateStatus = useUpdateTaskStatus();
   const toast = useToast();
 
-  const handleToggle = async (task: Task) => {
+  const handleToggle = async (task: TaskWithClient) => {
     try {
-      await updateStatus.mutateAsync({ id: task._id, status: task.status === 'completed' ? 'pending' : 'completed' });
+      await updateStatus.mutateAsync({ id: task.id, status: task.status === 'completed' ? 'pending' : 'completed' });
       toast.success(task.status === 'completed' ? 'Tarefa reaberta.' : 'Tarefa concluída.');
     } catch (error) {
       toast.error(getApiErrorMessage(error));
@@ -46,10 +46,10 @@ export function RecentTasks({ tasks }: { tasks: Task[] }) {
       ) : (
         <ul className="mt-4 flex flex-col divide-y divide-border">
           {tasks.map((task) => {
-            const client = typeof task.clientId === 'object' ? task.clientId : undefined;
+            const client = task.client;
             const overdue = isOverdue(task.dueDate, task.status);
             return (
-              <li key={task._id} className="flex items-center gap-3 py-3">
+              <li key={task.id} className="flex items-center gap-3 py-3">
                 <Checkbox
                   checked={task.status === 'completed'}
                   onCheckedChange={() => handleToggle(task)}
@@ -58,7 +58,7 @@ export function RecentTasks({ tasks }: { tasks: Task[] }) {
                 />
                 <button
                   type="button"
-                  onClick={() => navigate(`/tarefas/${task._id}`)}
+                  onClick={() => navigate(`/tarefas/${task.id}`)}
                   className="min-w-0 flex-1 text-left"
                 >
                   <p className={`truncate text-body-strong ${task.status === 'completed' ? 'text-text-secondary line-through' : 'text-text-primary'}`}>

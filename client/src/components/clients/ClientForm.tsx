@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
 import { maskPhone, getInitials } from '@/utils/formatters';
 import { PRIORITY_OPTIONS, STATUS_OPTIONS, Client } from '@/types';
+import { useSync } from '@/context/SyncContext';
 
 const phoneRegex = /^\(\d{2}\) \d{4,5}-\d{4}$/;
 
@@ -43,6 +44,7 @@ export function ClientForm({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | undefined>(currentAvatarUrl);
+  const { isOnline } = useSync();
 
   const {
     register,
@@ -104,6 +106,9 @@ export function ClientForm({
           className="hidden"
           onChange={handleFileChange}
         />
+        {!isOnline && (
+          <p className="text-caption text-text-secondary">Enviar foto requer conexão com a internet.</p>
+        )}
       </div>
 
       <Input label="Nome" placeholder="Nome do cliente" error={errors.name?.message} {...register('name')} />

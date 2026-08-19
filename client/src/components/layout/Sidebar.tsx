@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { Home, Users, CheckSquare, Settings, LogOut, Handshake } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
+import { useLogoutConfirm } from '@/hooks/useLogoutConfirm';
+import { SyncIndicator } from './SyncIndicator';
 
 const MAIN_ITEMS = [
   { to: '/', label: 'Home', icon: Home, end: true },
@@ -9,7 +10,7 @@ const MAIN_ITEMS = [
 ];
 
 export function Sidebar() {
-  const { logout } = useAuth();
+  const { requestLogout, dialog } = useLogoutConfirm();
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-3 rounded-[12px] px-4 py-3 text-body-strong transition-all duration-200 ease-gentle ${
@@ -28,6 +29,10 @@ export function Sidebar() {
         </div>
       </div>
 
+      <div className="mb-4 px-2">
+        <SyncIndicator variant="sidebar" />
+      </div>
+
       <nav className="flex flex-1 flex-col gap-1" aria-label="Navegação principal">
         {MAIN_ITEMS.map(({ to, label, icon: Icon, end }) => (
           <NavLink key={to} to={to} end={end} className={linkClass}>
@@ -44,13 +49,14 @@ export function Sidebar() {
         </NavLink>
         <button
           type="button"
-          onClick={() => logout()}
+          onClick={requestLogout}
           className="flex items-center gap-3 rounded-[12px] px-4 py-3 text-body-strong text-white/85 transition-colors duration-200 hover:bg-white/10 hover:text-white"
         >
           <LogOut size={20} aria-hidden="true" />
           Sair
         </button>
       </div>
+      {dialog}
     </aside>
   );
 }

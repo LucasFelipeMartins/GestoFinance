@@ -14,7 +14,12 @@ export const env = {
   port: Number(process.env.PORT ?? 4000),
   nodeEnv: process.env.NODE_ENV ?? 'development',
   isProduction: (process.env.NODE_ENV ?? 'development') === 'production',
-  clientOrigin: process.env.CLIENT_ORIGIN ?? 'http://localhost:5173',
+  // Comma-separated list: the deployed web origin(s) plus the Capacitor
+  // native app's origins (which aren't a real remote domain).
+  clientOrigins: (process.env.CLIENT_ORIGIN ?? 'http://localhost:5173')
+    .split(',')
+    .map((origin) => origin.trim())
+    .concat(['capacitor://localhost', 'http://localhost']),
   mongoUrl: required('MONGO_URL'),
   jwtSecret: required('JWT_SECRET'),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '7d',

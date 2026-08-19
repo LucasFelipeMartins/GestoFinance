@@ -19,7 +19,7 @@ export function ClientCardMobile({ client, onEdit, onComplete, onDelete }: Clien
   const navigate = useNavigate();
 
   return (
-    <Card className="flex flex-col gap-3 cursor-pointer" onClick={() => navigate(`/clientes/${client._id}`)}>
+    <Card className="flex flex-col gap-3 cursor-pointer" onClick={() => navigate(`/clientes/${client.id}`)}>
       <div className="flex items-start gap-3">
         <Avatar
           name={client.name}
@@ -34,7 +34,7 @@ export function ClientCardMobile({ client, onEdit, onComplete, onDelete }: Clien
         <div onClick={(e) => e.stopPropagation()}>
           <ActionsMenu
             items={[
-              { label: 'Visualizar', icon: <Eye size={16} />, onSelect: () => navigate(`/clientes/${client._id}`) },
+              { label: 'Visualizar', icon: <Eye size={16} />, onSelect: () => navigate(`/clientes/${client.id}`) },
               { label: 'Editar', icon: <Pencil size={16} />, onSelect: () => onEdit(client) },
               { label: 'Marcar como concluído', icon: <CheckCircle size={16} />, onSelect: () => onComplete(client) },
               { label: 'Remover', icon: <Trash2 size={16} />, onSelect: () => onDelete(client), danger: true, separatorBefore: true },

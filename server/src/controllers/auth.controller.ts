@@ -41,7 +41,9 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   const token = signToken({ userId: String(user._id) });
   setAuthCookie(res, token);
 
-  res.status(201).json({ user: toPublicUser(user) });
+  // The cookie is what web relies on; `token` is for the native app, which
+  // stores it itself and sends it back as an Authorization: Bearer header.
+  res.status(201).json({ user: toPublicUser(user), token });
 });
 
 export const login = asyncHandler(async (req: Request, res: Response) => {
@@ -60,7 +62,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   const token = signToken({ userId: String(user._id) });
   setAuthCookie(res, token);
 
-  res.json({ user: toPublicUser(user) });
+  res.json({ user: toPublicUser(user), token });
 });
 
 export const logout = asyncHandler(async (_req: Request, res: Response) => {

@@ -6,14 +6,14 @@ import { StatusBadge, Badge } from '@/components/ui/Badge';
 import { PriorityFlag } from '@/components/ui/PriorityFlag';
 import { IconButton } from '@/components/ui/IconButton';
 import { Checkbox } from '@/components/ui/Checkbox';
-import { Task } from '@/types';
+import { TaskWithClient } from '@/types';
 import { formatRelativeDate, isOverdue } from '@/utils/formatters';
 
 interface TaskTableProps {
-  tasks: Task[];
-  onToggleComplete: (task: Task) => void;
-  onEdit: (task: Task) => void;
-  onDelete: (task: Task) => void;
+  tasks: TaskWithClient[];
+  onToggleComplete: (task: TaskWithClient) => void;
+  onEdit: (task: TaskWithClient) => void;
+  onDelete: (task: TaskWithClient) => void;
 }
 
 export function TaskTable({ tasks, onToggleComplete, onEdit, onDelete }: TaskTableProps) {
@@ -34,11 +34,11 @@ export function TaskTable({ tasks, onToggleComplete, onEdit, onDelete }: TaskTab
       </Thead>
       <Tbody>
         {tasks.map((task) => {
-          const client = typeof task.clientId === 'object' ? task.clientId : undefined;
+          const client = task.client;
           const overdue = isOverdue(task.dueDate, task.status);
 
           return (
-            <Tr key={task._id} className="cursor-pointer" onClick={() => navigate(`/tarefas/${task._id}`)}>
+            <Tr key={task.id} className="cursor-pointer" onClick={() => navigate(`/tarefas/${task.id}`)}>
               <Td onClick={(e) => e.stopPropagation()}>
                 <Checkbox
                   checked={task.status === 'completed'}
@@ -79,7 +79,7 @@ export function TaskTable({ tasks, onToggleComplete, onEdit, onDelete }: TaskTab
               </Td>
               <Td onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-end gap-1">
-                  <IconButton icon={<Eye size={16} />} label="Visualizar" onClick={() => navigate(`/tarefas/${task._id}`)} />
+                  <IconButton icon={<Eye size={16} />} label="Visualizar" onClick={() => navigate(`/tarefas/${task.id}`)} />
                   <IconButton icon={<Pencil size={16} />} label="Editar" onClick={() => onEdit(task)} />
                   <IconButton icon={<Trash2 size={16} />} label="Remover" variant="danger" onClick={() => onDelete(task)} />
                 </div>

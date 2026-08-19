@@ -33,13 +33,21 @@ export const listClients = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const getClient = asyncHandler(async (req: Request, res: Response) => {
-  const client = await Client.findOne({ _id: req.params.id, userId: req.userId }).lean();
+  const client = await Client.findOne({ localId: req.params.id, userId: req.userId }).lean();
   if (!client) throw ApiError.notFound('Cliente não encontrado.');
   res.json({ client });
 });
 
 export const createClient = asyncHandler(async (req: Request, res: Response) => {
   const data = createClientSchema.parse(req.body);
+
+  // Idempotent: the sync outbox may retry a create whose response was lost
+  // in transit. Same localId for this user means "already created".
+  const existing = await Client.findOne({ userId: req.userId, localId: data.localId }).lean();
+  if (existing) {
+    res.status(200).json({ client: existing });
+    return;
+  }
 
   const client = await Client.create({
     ...data,
@@ -53,8 +61,15 @@ export const createClient = asyncHandler(async (req: Request, res: Response) => 
 export const updateClient = asyncHandler(async (req: Request, res: Response) => {
   const data = updateClientSchema.parse(req.body);
 
-  const client = await Client.findOne({ _id: req.params.id, userId: req.userId });
+  const client = await Client.findOne({ localId: req.params.id, userId: req.userId });
   if (!client) throw ApiError.notFound('Cliente não encontrado.');
+
+  // Last-write-wins: a stale push (older than what the server already has)
+  // is silently ignored — the caller will re-pull and see the newer state.
+  if (data.updatedAt < client.updatedAt) {
+    res.json({ client });
+    return;
+  }
 
   Object.assign(client, data);
   if (data.name) client.initials = getInitials(data.name);
@@ -64,14 +79,19 @@ export const updateClient = asyncHandler(async (req: Request, res: Response) => 
 });
 
 export const updateClientStatus = asyncHandler(async (req: Request, res: Response) => {
-  const { status } = updateClientStatusSchema.parse(req.body);
+  const data = updateClientStatusSchema.parse(req.body);
 
-  const client = await Client.findOneAndUpdate(
-    { _id: req.params.id, userId: req.userId },
-    { status },
-    { new: true }
-  );
+  const client = await Client.findOne({ localId: req.params.id, userId: req.userId });
   if (!client) throw ApiError.notFound('Cliente não encontrado.');
+
+  if (data.updatedAt < client.updatedAt) {
+    res.json({ client });
+    return;
+  }
+
+  client.status = data.status;
+  client.updatedAt = data.updatedAt;
+  await client.save();
 
   res.json({ client });
 });
@@ -79,15 +99,15 @@ export const updateClientStatus = asyncHandler(async (req: Request, res: Respons
 export const deleteClient = asyncHandler(async (req: Request, res: Response) => {
   const tasksAction = req.query.tasksAction === 'delete' ? 'delete' : 'unlink';
 
-  const client = await Client.findOneAndDelete({ _id: req.params.id, userId: req.userId });
+  const client = await Client.findOneAndDelete({ localId: req.params.id, userId: req.userId });
   if (!client) throw ApiError.notFound('Cliente não encontrado.');
 
   await deleteAvatar(client.avatarUrl);
 
   if (tasksAction === 'delete') {
-    await Task.deleteMany({ clientId: client._id, userId: req.userId });
+    await Task.deleteMany({ clientId: client.localId, userId: req.userId });
   } else {
-    await Task.updateMany({ clientId: client._id, userId: req.userId }, { $unset: { clientId: '' } });
+    await Task.updateMany({ clientId: client.localId, userId: req.userId }, { $unset: { clientId: '' } });
   }
 
   res.status(204).send();
@@ -96,11 +116,12 @@ export const deleteClient = asyncHandler(async (req: Request, res: Response) => 
 export const uploadClientAvatar = asyncHandler(async (req: Request, res: Response) => {
   if (!req.file) throw ApiError.badRequest('Nenhuma imagem enviada.');
 
-  const client = await Client.findOne({ _id: req.params.id, userId: req.userId });
+  const client = await Client.findOne({ localId: req.params.id, userId: req.userId });
   if (!client) throw ApiError.notFound('Cliente não encontrado.');
 
   await deleteAvatar(client.avatarUrl);
-  client.avatarUrl = await saveAvatar(req.file.buffer, String(client._id));
+  client.avatarUrl = await saveAvatar(req.file.buffer, client.localId);
+  client.updatedAt = new Date();
   await client.save();
 
   res.json({ client });

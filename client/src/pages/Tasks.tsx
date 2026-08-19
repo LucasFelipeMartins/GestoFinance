@@ -83,7 +83,7 @@ export default function Tasks() {
 
   const handleToggleComplete = async (task: Task) => {
     try {
-      await updateStatus.mutateAsync({ id: task._id, status: task.status === 'completed' ? 'pending' : 'completed' });
+      await updateStatus.mutateAsync({ id: task.id, status: task.status === 'completed' ? 'pending' : 'completed' });
       toast.success(task.status === 'completed' ? 'Tarefa reaberta.' : 'Tarefa concluída.');
     } catch (error) {
       toast.error(getApiErrorMessage(error));
@@ -120,7 +120,7 @@ export default function Tasks() {
         </div>
         <Select
           placeholder="Cliente"
-          options={(clients ?? []).map((c) => ({ value: c._id, label: c.name }))}
+          options={(clients ?? []).map((c) => ({ value: c.id, label: c.name }))}
           value={clientId}
           onChange={setClientId}
         />
@@ -178,7 +178,7 @@ export default function Tasks() {
           </div>
           <div className="flex flex-col gap-3 lg:hidden">
             {tasks.map((task) => (
-              <TaskCardMobile key={task._id} task={task} onToggleComplete={handleToggleComplete} onEdit={openEdit} onDelete={setDeletingTask} />
+              <TaskCardMobile key={task.id} task={task} onToggleComplete={handleToggleComplete} onEdit={openEdit} onDelete={setDeletingTask} />
             ))}
           </div>
         </>

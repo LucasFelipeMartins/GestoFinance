@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/context/AuthContext';
+import { SyncProvider } from '@/context/SyncContext';
 import { ToastProvider } from '@/context/ToastContext';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ProtectedRoute, GuestRoute } from '@/components/layout/ProtectedRoute';
@@ -20,6 +21,15 @@ const queryClient = new QueryClient({
       staleTime: 30_000,
       refetchOnWindowFocus: false,
       retry: 1,
+      // Queries and mutations read/write the local Dexie DB, not the
+      // network — React Query's default 'online' mode pauses them while
+      // navigator.onLine is false, which would break the whole point of
+      // being local-first. The actual sync engine does its own connectivity
+      // checks around the real network calls.
+      networkMode: 'always',
+    },
+    mutations: {
+      networkMode: 'always',
     },
   },
 });
@@ -29,27 +39,29 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
-          <ToastProvider>
-            <Routes>
-              <Route element={<GuestRoute />}>
-                <Route path="/entrar" element={<Login />} />
-                <Route path="/criar-conta" element={<Register />} />
-              </Route>
-
-              <Route element={<ProtectedRoute />}>
-                <Route element={<AppLayout />}>
-                  <Route path="/" element={<Home />} />
-                  <Route path="/clientes" element={<Clients />} />
-                  <Route path="/clientes/:id" element={<ClientDetails />} />
-                  <Route path="/tarefas" element={<Tasks />} />
-                  <Route path="/tarefas/:id" element={<TaskDetails />} />
-                  <Route path="/configuracoes" element={<Settings />} />
+          <SyncProvider>
+            <ToastProvider>
+              <Routes>
+                <Route element={<GuestRoute />}>
+                  <Route path="/entrar" element={<Login />} />
+                  <Route path="/criar-conta" element={<Register />} />
                 </Route>
-              </Route>
 
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </ToastProvider>
+                <Route element={<ProtectedRoute />}>
+                  <Route element={<AppLayout />}>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/clientes" element={<Clients />} />
+                    <Route path="/clientes/:id" element={<ClientDetails />} />
+                    <Route path="/tarefas" element={<Tasks />} />
+                    <Route path="/tarefas/:id" element={<TaskDetails />} />
+                    <Route path="/configuracoes" element={<Settings />} />
+                  </Route>
+                </Route>
+
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </ToastProvider>
+          </SyncProvider>
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>

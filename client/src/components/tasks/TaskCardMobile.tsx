@@ -5,23 +5,23 @@ import { Checkbox } from '@/components/ui/Checkbox';
 import { PriorityFlag } from '@/components/ui/PriorityFlag';
 import { Badge } from '@/components/ui/Badge';
 import { ActionsMenu } from '@/components/ui/ActionsMenu';
-import { Task } from '@/types';
+import { TaskWithClient } from '@/types';
 import { formatRelativeDate, isOverdue } from '@/utils/formatters';
 
 interface TaskCardMobileProps {
-  task: Task;
-  onToggleComplete: (task: Task) => void;
-  onEdit: (task: Task) => void;
-  onDelete: (task: Task) => void;
+  task: TaskWithClient;
+  onToggleComplete: (task: TaskWithClient) => void;
+  onEdit: (task: TaskWithClient) => void;
+  onDelete: (task: TaskWithClient) => void;
 }
 
 export function TaskCardMobile({ task, onToggleComplete, onEdit, onDelete }: TaskCardMobileProps) {
   const navigate = useNavigate();
-  const client = typeof task.clientId === 'object' ? task.clientId : undefined;
+  const client = task.client;
   const overdue = isOverdue(task.dueDate, task.status);
 
   return (
-    <Card className="flex flex-col gap-2.5 cursor-pointer" onClick={() => navigate(`/tarefas/${task._id}`)}>
+    <Card className="flex flex-col gap-2.5 cursor-pointer" onClick={() => navigate(`/tarefas/${task.id}`)}>
       <div className="flex items-start gap-3">
         <PriorityFlag priority={task.priority} size={18} />
         <div className="min-w-0 flex-1">
@@ -53,7 +53,7 @@ export function TaskCardMobile({ task, onToggleComplete, onEdit, onDelete }: Tas
         <div onClick={(e) => e.stopPropagation()}>
           <ActionsMenu
             items={[
-              { label: 'Visualizar', icon: <Eye size={16} />, onSelect: () => navigate(`/tarefas/${task._id}`) },
+              { label: 'Visualizar', icon: <Eye size={16} />, onSelect: () => navigate(`/tarefas/${task.id}`) },
               { label: 'Editar', icon: <Pencil size={16} />, onSelect: () => onEdit(task) },
               { label: 'Remover', icon: <Trash2 size={16} />, onSelect: () => onDelete(task), danger: true, separatorBefore: true },
             ]}

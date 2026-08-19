@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { dashboardService } from '@/services/dashboardService';
+import { dashboardRepository } from '@/repositories/dashboardRepository';
 
 export function useDashboardSummary() {
   return useQuery({
     queryKey: ['dashboard', 'summary'],
-    queryFn: () => dashboardService.summary(),
+    queryFn: () => dashboardRepository.summary(),
   });
 }

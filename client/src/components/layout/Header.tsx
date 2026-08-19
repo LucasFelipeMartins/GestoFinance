@@ -5,10 +5,13 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
+import { useLogoutConfirm } from '@/hooks/useLogoutConfirm';
 import { Avatar } from '@/components/ui/Avatar';
+import { SyncIndicator } from './SyncIndicator';
 
 export function Header() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
+  const { requestLogout, dialog } = useLogoutConfirm();
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -28,6 +31,10 @@ export function Header() {
 
       <div className="flex shrink-0 items-center gap-2 sm:gap-4">
         <span className="hidden text-body-strong text-text-secondary lg:block">{todayCapitalized}</span>
+
+        <span className="hidden sm:block">
+          <SyncIndicator variant="header" />
+        </span>
 
         <button
           type="button"
@@ -67,7 +74,7 @@ export function Header() {
               </DropdownMenu.Item>
               <DropdownMenu.Separator className="my-1 h-px bg-border" />
               <DropdownMenu.Item
-                onSelect={() => logout()}
+                onSelect={requestLogout}
                 className="flex cursor-pointer items-center gap-2.5 rounded-md px-3 py-2.5 text-body text-danger outline-none data-[highlighted]:bg-danger/10"
               >
                 <LogOut size={17} />
@@ -77,6 +84,7 @@ export function Header() {
           </DropdownMenu.Portal>
         </DropdownMenu.Root>
       </div>
+      {dialog}
     </header>
   );
 }

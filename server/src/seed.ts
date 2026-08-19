@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { connectDatabase } from './config/db';
 import { User } from './models/User';
 import { Client } from './models/Client';
@@ -27,6 +28,8 @@ async function seed() {
   await Client.deleteMany({ userId: user._id });
   await Task.deleteMany({ userId: user._id });
 
+  const now = new Date();
+
   const clientsData = [
     { name: 'Maria Silva', phone: '(32) 99876-5432', service: 'Manutenção de notebook', price: 150, priority: 'critical', status: 'completed' },
     { name: 'João Santos', phone: '(32) 98765-4321', service: 'Instalação de sistema', price: 120, priority: 'high', status: 'in-progress' },
@@ -35,26 +38,30 @@ async function seed() {
   ] as const;
 
   const clients = await Client.insertMany(
-    clientsData.map((c) => ({ ...c, userId: user!._id, initials: getInitials(c.name) }))
+    clientsData.map((c) => ({
+      ...c,
+      userId: user!._id,
+      localId: crypto.randomUUID(),
+      initials: getInitials(c.name),
+      createdAt: now,
+      updatedAt: now,
+    }))
   );
 
-  const findClient = (name: string) => clients.find((c) => c.name === name)!._id;
+  const findClient = (name: string) => clients.find((c) => c.name === name)!.localId;
 
-  const today = new Date();
-  const inDays = (days: number) => new Date(today.getTime() + days * 24 * 60 * 60 * 1000);
+  const inDays = (days: number) => new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
 
-  await Task.insertMany([
+  const tasksData = [
     {
-      userId: user._id,
       title: 'Backup dos arquivos do cliente',
       description: 'Fazer backup completo dos arquivos e enviar para o drive.',
       clientId: findClient('Carlos Oliveira'),
-      dueDate: today,
+      dueDate: now,
       priority: 'critical',
       status: 'pending',
     },
     {
-      userId: user._id,
       title: 'Instalar impressora',
       clientId: findClient('Maria Silva'),
       dueDate: inDays(1),
@@ -62,7 +69,6 @@ async function seed() {
       status: 'pending',
     },
     {
-      userId: user._id,
       title: 'Atualizar antivírus',
       clientId: findClient('João Santos'),
       dueDate: inDays(3),
@@ -70,7 +76,6 @@ async function seed() {
       status: 'in-progress',
     },
     {
-      userId: user._id,
       title: 'Configurar e-mail',
       clientId: findClient('Ana Costa'),
       dueDate: inDays(5),
@@ -78,7 +83,6 @@ async function seed() {
       status: 'pending',
     },
     {
-      userId: user._id,
       title: 'Reunião de alinhamento',
       clientId: findClient('Carlos Oliveira'),
       dueDate: inDays(-2),
@@ -86,7 +90,17 @@ async function seed() {
       status: 'completed',
       completedAt: inDays(-2),
     },
-  ]);
+  ] as const;
+
+  await Task.insertMany(
+    tasksData.map((t) => ({
+      ...t,
+      userId: user!._id,
+      localId: crypto.randomUUID(),
+      createdAt: now,
+      updatedAt: now,
+    }))
+  );
 
   console.log('[seed] done');
   await mongoose.disconnect();

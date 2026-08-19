@@ -42,7 +42,7 @@ export default function ClientDetails() {
   const handleComplete = async () => {
     if (!client) return;
     try {
-      await updateStatus.mutateAsync({ id: client._id, status: 'completed' });
+      await updateStatus.mutateAsync({ id: client.id, status: 'completed' });
       toast.success('Cliente concluído.');
     } catch (error) {
       toast.error(getApiErrorMessage(error));

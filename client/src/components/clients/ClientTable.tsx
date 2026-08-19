@@ -34,7 +34,7 @@ export function ClientTable({ clients, onEdit, onComplete, onDelete }: ClientTab
       </Thead>
       <Tbody>
         {clients.map((client) => (
-          <Tr key={client._id} className="cursor-pointer" onClick={() => navigate(`/clientes/${client._id}`)}>
+          <Tr key={client.id} className="cursor-pointer" onClick={() => navigate(`/clientes/${client.id}`)}>
             <Td>
               <Avatar
                 name={client.name}
@@ -56,7 +56,7 @@ export function ClientTable({ clients, onEdit, onComplete, onDelete }: ClientTab
             </Td>
             <Td onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-end gap-1">
-                <IconButton icon={<Eye size={16} />} label="Visualizar" onClick={() => navigate(`/clientes/${client._id}`)} />
+                <IconButton icon={<Eye size={16} />} label="Visualizar" onClick={() => navigate(`/clientes/${client.id}`)} />
                 <IconButton icon={<Pencil size={16} />} label="Editar" onClick={() => onEdit(client)} />
                 <IconButton
                   icon={<CheckCircle size={16} />}

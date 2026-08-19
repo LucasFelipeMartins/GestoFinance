@@ -42,7 +42,7 @@ export default function TaskDetails() {
   const handleComplete = async () => {
     if (!task) return;
     try {
-      await updateStatus.mutateAsync({ id: task._id, status: 'completed' });
+      await updateStatus.mutateAsync({ id: task.id, status: 'completed' });
       toast.success('Tarefa concluída.');
     } catch (error) {
       toast.error(getApiErrorMessage(error));
@@ -69,7 +69,7 @@ export default function TaskDetails() {
     );
   }
 
-  const client = typeof task.clientId === 'object' ? task.clientId : undefined;
+  const client = task.client;
   const overdue = isOverdue(task.dueDate, task.status);
 
   return (
