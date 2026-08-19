@@ -19,4 +19,7 @@ export const env = {
   jwtSecret: required('JWT_SECRET'),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
   maxAvatarSizeMb: Number(process.env.MAX_AVATAR_SIZE_MB ?? 5),
+  // When set (production on Vercel), avatars upload to Vercel Blob instead of
+  // local disk, which doesn't persist across serverless invocations.
+  blobReadWriteToken: process.env.BLOB_READ_WRITE_TOKEN,
 };

@@ -5,8 +5,10 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import { env } from './config/env';
+import { connectDatabase } from './config/db';
 import routes from './routes';
 import { notFoundHandler, errorHandler } from './middleware/errorHandler';
+import { asyncHandler } from './utils/asyncHandler';
 
 const app = express();
 
@@ -17,6 +19,15 @@ app.use(express.json());
 if (!env.isProduction) {
   app.use(morgan('dev'));
 }
+
+// Ensures the (cached) MongoDB connection is ready before any request is
+// handled — required on serverless, where there's no long-lived startup phase.
+app.use(
+  asyncHandler(async (_req, _res, next) => {
+    await connectDatabase();
+    next();
+  })
+);
 
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
