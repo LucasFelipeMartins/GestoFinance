@@ -1,6 +1,5 @@
 import path from 'path';
 import express from 'express';
-import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
@@ -13,20 +12,32 @@ import { asyncHandler } from './utils/asyncHandler';
 const app = express();
 
 app.use(helmet({ crossOriginResourcePolicy: false }));
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // No Origin header (native app requests, curl, server-to-server) or an
-      // allow-listed origin: allow. Anything else: reject.
-      if (!origin || env.clientOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
-    credentials: true,
-  })
-);
+
+// Hand-rolled instead of the `cors` package so a request whose Origin
+// matches the Host it hit (the normal case: this same Vercel deployment
+// serving both the SPA and /api) is always allowed — including preview
+// deployment URLs we can't know in advance — without needing every one
+// added to CLIENT_ORIGIN by hand. The browser sends Origin even for
+// same-origin POSTs, so without this same-origin requests get rejected too.
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    const sameOrigin = origin === `https://${req.headers.host}` || origin === `http://${req.headers.host}`;
+    if (sameOrigin || env.clientOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+      res.setHeader('Vary', 'Origin');
+    }
+  }
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+    res.sendStatus(204);
+    return;
+  }
+  next();
+});
+
 app.use(cookieParser());
 app.use(express.json());
 if (!env.isProduction) {
