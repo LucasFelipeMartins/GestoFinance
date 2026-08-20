@@ -62,8 +62,8 @@ async function pushEntry(entry: OutboxEntry): Promise<PushOutcome> {
         const result = await clientService.update(entry.entityId, entry.payload as unknown as ClientUpdatePayload);
         await clientRepository.replaceLocal(result);
       } else if (entry.type === 'status') {
-        const payload = entry.payload as { status: EntityStatus; updatedAt: string };
-        const result = await clientService.updateStatus(entry.entityId, payload.status, payload.updatedAt);
+        const payload = entry.payload as { status: EntityStatus; updatedAt: string; completedAt?: string };
+        const result = await clientService.updateStatus(entry.entityId, payload.status, payload.updatedAt, payload.completedAt);
         await clientRepository.replaceLocal(result);
       } else if (entry.type === 'delete') {
         const payload = entry.payload as { tasksAction?: 'unlink' | 'delete' } | undefined;

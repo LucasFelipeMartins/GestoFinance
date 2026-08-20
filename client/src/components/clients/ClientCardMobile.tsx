@@ -5,6 +5,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { StatusBadge } from '@/components/ui/Badge';
 import { PriorityFlag } from '@/components/ui/PriorityFlag';
 import { ActionsMenu } from '@/components/ui/ActionsMenu';
+import { DeliveryBadge } from './DeliveryBadge';
 import { Client } from '@/types';
 import { formatCurrency } from '@/utils/formatters';
 
@@ -45,6 +46,10 @@ export function ClientCardMobile({ client, onEdit, onComplete, onDelete }: Clien
 
       <p className="text-body text-text-secondary">{client.phone}</p>
       <p className="text-body-strong text-text-primary">{formatCurrency(client.price)}</p>
+
+      {client.deliveryDate && (
+        <DeliveryBadge deliveryDate={client.deliveryDate} status={client.status} showDate />
+      )}
 
       <div className="flex items-center justify-between">
         <StatusBadge status={client.status} />

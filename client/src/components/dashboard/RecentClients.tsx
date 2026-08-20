@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/Card';
 import { Avatar } from '@/components/ui/Avatar';
 import { StatusBadge } from '@/components/ui/Badge';
 import { PriorityFlag } from '@/components/ui/PriorityFlag';
+import { DeliveryBadge } from '@/components/clients/DeliveryBadge';
 import { Client } from '@/types';
 import { formatCurrency } from '@/utils/formatters';
 
@@ -47,6 +48,11 @@ export function RecentClients({ clients }: { clients: Client[] }) {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-body-strong text-text-primary">{client.name}</p>
                   <p className="truncate text-caption text-text-secondary">{client.service}</p>
+                  {client.deliveryDate && (
+                    <span className="mt-1 inline-flex">
+                      <DeliveryBadge deliveryDate={client.deliveryDate} status={client.status} />
+                    </span>
+                  )}
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1.5">
                   <span className="text-body-strong text-text-primary">{formatCurrency(client.price)}</span>

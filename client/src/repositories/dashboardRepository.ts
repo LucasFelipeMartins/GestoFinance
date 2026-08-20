@@ -1,7 +1,7 @@
 import { clientRepository } from './clientRepository';
 import { taskRepository } from './taskRepository';
 import { defaultTaskSort } from '@/utils/taskSort';
-import { isOverdue } from '@/utils/formatters';
+import { isOverdue, isHiddenFromHome } from '@/utils/formatters';
 import { DashboardSummary } from '@/types';
 
 function rate(part: number, total: number): number {
@@ -27,8 +27,15 @@ async function summary(): Promise<DashboardSummary> {
   const inProgressTasks = tasks.filter((t) => t.status === 'in-progress').length;
   const overdueTasks = tasks.filter((t) => isOverdue(t.dueDate, t.status)).length;
 
-  const recentClients = clients.slice(0, 5);
-  const recentTasks = [...tasks].sort(defaultTaskSort).slice(0, 5);
+  // Completed-and-older-than-24h items stay counted above but drop out of
+  // the "recent" lists — they're still fully manageable on their own pages.
+  const recentClients = clients
+    .filter((c) => !isHiddenFromHome(c.status, c.completedAt))
+    .slice(0, 5);
+  const recentTasks = [...tasks]
+    .filter((t) => !isHiddenFromHome(t.status, t.completedAt))
+    .sort(defaultTaskSort)
+    .slice(0, 5);
 
   return {
     clients: {

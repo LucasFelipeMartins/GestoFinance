@@ -4,6 +4,7 @@ import { useCreateClient, useUpdateClient, useUploadClientAvatar } from '@/hooks
 import { useToast } from '@/context/ToastContext';
 import { getApiErrorMessage } from '@/services/api';
 import { Client } from '@/types';
+import { toDateInputValue } from '@/utils/formatters';
 
 interface ClientFormModalProps {
   open: boolean;
@@ -61,7 +62,7 @@ export function ClientFormModal({ open, onOpenChange, client }: ClientFormModalP
     >
       <ClientForm
         key={client?.id ?? 'new'}
-        defaultValues={client}
+        defaultValues={client && { ...client, deliveryDate: toDateInputValue(client.deliveryDate) }}
         currentAvatarUrl={client?.avatarUrl}
         onSubmit={handleSubmit}
         onCancel={() => onOpenChange(false)}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Phone, Briefcase, DollarSign, Calendar, Clock, Pencil, CheckCircle, Trash2 } from 'lucide-react';
+import { ArrowLeft, Phone, Briefcase, DollarSign, Calendar, CalendarClock, Clock, Pencil, CheckCircle, Trash2 } from 'lucide-react';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { Avatar } from '@/components/ui/Avatar';
 import { StatusBadge } from '@/components/ui/Badge';
@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { ClientFormModal } from '@/components/clients/ClientFormModal';
 import { DeleteClientDialog } from '@/components/clients/DeleteClientDialog';
+import { DeliveryBadge } from '@/components/clients/DeliveryBadge';
 import { useClient, useUpdateClientStatus } from '@/hooks/useClients';
 import { useToast } from '@/context/ToastContext';
 import { getApiErrorMessage } from '@/services/api';
@@ -94,9 +95,12 @@ export default function ClientDetails() {
             <h1 className="text-h2 text-text-primary">{client.name}</h1>
             <p className="text-body text-text-secondary">{client.service}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-center gap-2">
             <StatusBadge status={client.status} />
             <PriorityFlag priority={client.priority} />
+            {client.deliveryDate && (
+              <DeliveryBadge deliveryDate={client.deliveryDate} status={client.status} />
+            )}
           </div>
         </div>
 
@@ -104,6 +108,11 @@ export default function ClientDetails() {
           <DetailRow icon={<Phone size={17} />} label="Número" value={client.phone} />
           <DetailRow icon={<Briefcase size={17} />} label="Serviço" value={client.service} />
           <DetailRow icon={<DollarSign size={17} />} label="Preço" value={formatCurrency(client.price)} />
+          <DetailRow
+            icon={<CalendarClock size={17} />}
+            label="Data de entrega"
+            value={client.deliveryDate ? formatDate(client.deliveryDate) : 'Não definida'}
+          />
           <DetailRow icon={<Calendar size={17} />} label="Adicionado em" value={formatDate(client.createdAt)} />
           <DetailRow icon={<Clock size={17} />} label="Última atualização" value={formatDate(client.updatedAt)} />
         </div>

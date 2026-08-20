@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, MutationCache } from '@tanstack/react-query';
 import { AuthProvider } from '@/context/AuthContext';
 import { SyncProvider } from '@/context/SyncContext';
 import { ToastProvider } from '@/context/ToastContext';
@@ -14,8 +14,19 @@ import Tasks from '@/pages/Tasks';
 import TaskDetails from '@/pages/TaskDetails';
 import Settings from '@/pages/Settings';
 import NotFound from '@/pages/NotFound';
+import { runSync } from '@/db/sync';
 
 const queryClient = new QueryClient({
+  // Every mutation writes to the local outbox first and only reaches the
+  // server on the next sync pass. Without this, a plain online edit would
+  // just sit queued until the 2-minute timer or a connectivity flip fired
+  // — kick a sync right after each one instead (runSync no-ops while
+  // another sync is already in flight, so firing it often is harmless).
+  mutationCache: new MutationCache({
+    onSuccess: () => {
+      runSync();
+    },
+  }),
   defaultOptions: {
     queries: {
       staleTime: 30_000,

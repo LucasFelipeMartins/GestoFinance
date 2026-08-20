@@ -5,7 +5,7 @@ export interface ClientListParams {
   search?: string;
   status?: EntityStatus;
   priority?: Priority;
-  sort?: 'name' | 'price' | 'priority' | 'createdAt' | 'status';
+  sort?: 'name' | 'price' | 'priority' | 'createdAt' | 'status' | 'deliveryDate';
   order?: 'asc' | 'desc';
 }
 
@@ -19,6 +19,8 @@ export interface ClientCreatePayload {
   priority: Priority;
   status: EntityStatus;
   avatarUrl?: string;
+  /** '' explicitly clears the date server-side; omitted means 'unchanged'. */
+  deliveryDate?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -58,8 +60,8 @@ export const clientService = {
     return fromApi(data.client);
   },
 
-  async updateStatus(id: string, status: EntityStatus, updatedAt: string): Promise<Client> {
-    const { data } = await api.patch<{ client: ApiClient }>(`/clients/${id}/status`, { status, updatedAt });
+  async updateStatus(id: string, status: EntityStatus, updatedAt: string, completedAt?: string): Promise<Client> {
+    const { data } = await api.patch<{ client: ApiClient }>(`/clients/${id}/status`, { status, updatedAt, completedAt });
     return fromApi(data.client);
   },
 

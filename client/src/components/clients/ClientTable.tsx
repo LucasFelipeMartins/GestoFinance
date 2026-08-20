@@ -4,6 +4,7 @@ import { Table, Thead, Tbody, Tr, Th, Td } from '@/components/ui/Table';
 import { Avatar } from '@/components/ui/Avatar';
 import { StatusBadge } from '@/components/ui/Badge';
 import { PriorityFlag } from '@/components/ui/PriorityFlag';
+import { DeliveryBadge } from './DeliveryBadge';
 import { IconButton } from '@/components/ui/IconButton';
 import { Client } from '@/types';
 import { formatCurrency } from '@/utils/formatters';
@@ -27,6 +28,7 @@ export function ClientTable({ clients, onEdit, onComplete, onDelete }: ClientTab
           <Th>Número</Th>
           <Th>Serviço</Th>
           <Th>Preço</Th>
+          <Th>Entrega</Th>
           <Th>Prioridade</Th>
           <Th>Status</Th>
           <Th className="text-right">Ações</Th>
@@ -48,6 +50,9 @@ export function ClientTable({ clients, onEdit, onComplete, onDelete }: ClientTab
             <Td className="whitespace-nowrap">{client.phone}</Td>
             <Td>{client.service}</Td>
             <Td className="whitespace-nowrap">{formatCurrency(client.price)}</Td>
+            <Td>
+              <DeliveryBadge deliveryDate={client.deliveryDate} status={client.status} />
+            </Td>
             <Td>
               <PriorityFlag priority={client.priority} />
             </Td>

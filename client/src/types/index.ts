@@ -39,8 +39,12 @@ export interface Client {
   initials: string;
   priority: Priority;
   status: EntityStatus;
+  /** Agreed delivery date for this client's project (optional). */
+  deliveryDate?: string;
   createdAt: string;
   updatedAt: string;
+  /** Set when status becomes 'completed' — drives the Home 24h auto-hide. */
+  completedAt?: string;
 }
 
 export interface TaskClientRef {

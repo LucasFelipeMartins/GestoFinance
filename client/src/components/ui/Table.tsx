@@ -15,7 +15,7 @@ export function Thead({ children }: { children: ReactNode }) {
 export function Th({ children, className = '', ...props }: ThHTMLAttributes<HTMLTableCellElement>) {
   return (
     <th
-      className={`px-4 py-3.5 text-caption font-semibold uppercase tracking-wide text-text-secondary ${className}`}
+      className={`px-3.5 py-3.5 text-caption font-semibold uppercase tracking-wide text-text-secondary ${className}`}
       {...props}
     >
       {children}
@@ -37,7 +37,7 @@ export function Tr({ children, className = '', ...props }: HTMLAttributes<HTMLTa
 
 export function Td({ children, className = '', ...props }: TdHTMLAttributes<HTMLTableCellElement>) {
   return (
-    <td className={`px-4 py-3.5 align-middle text-body text-text-primary ${className}`} {...props}>
+    <td className={`px-3.5 py-3.5 align-middle text-body text-text-primary ${className}`} {...props}>
       {children}
     </td>
   );

@@ -20,6 +20,7 @@ const schema = z.object({
   price: z.coerce.number({ message: 'Informe um valor.' }).min(0, 'Informe um valor maior ou igual a R$ 0,00.'),
   priority: z.enum(['critical', 'high', 'medium', 'low', 'very-low'], { message: 'Selecione uma prioridade.' }),
   status: z.enum(['pending', 'in-progress', 'completed']),
+  deliveryDate: z.string().optional(),
 });
 
 export type ClientFormValues = z.infer<typeof schema>;
@@ -61,6 +62,7 @@ export function ClientForm({
       price: 0,
       priority: 'medium',
       status: 'pending',
+      deliveryDate: '',
       ...defaultValues,
     },
   });
@@ -144,6 +146,14 @@ export function ClientForm({
         placeholder="0,00"
         error={errors.price?.message}
         {...register('price')}
+      />
+
+      <Input
+        label="Data de entrega"
+        type="date"
+        hint="Opcional. Usada para mostrar quanto tempo falta para a entrega."
+        error={errors.deliveryDate?.message}
+        {...register('deliveryDate')}
       />
 
       <Controller

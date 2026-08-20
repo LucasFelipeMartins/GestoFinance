@@ -15,6 +15,10 @@ const baseClientFields = {
   priority: z.enum(PRIORITIES, { message: 'Selecione uma prioridade.' }),
   status: z.enum(STATUSES).optional().default('pending'),
   avatarUrl: z.string().optional(),
+  // Empty string is the explicit 'clear this date' signal — an absent key
+  // just means 'leave it as is', which a partial update can't distinguish
+  // from undefined once it round-trips through JSON.
+  deliveryDate: z.union([z.literal(''), z.coerce.date()]).optional(),
 };
 
 export const createClientSchema = z.object({
@@ -35,18 +39,20 @@ export const updateClientSchema = z.object({
   priority: true,
   status: true,
   avatarUrl: true,
+  deliveryDate: true,
 });
 
 export const updateClientStatusSchema = z.object({
   status: z.enum(STATUSES),
   updatedAt: z.coerce.date(),
+  completedAt: z.coerce.date().optional(),
 });
 
 export const clientQuerySchema = z.object({
   search: z.string().trim().optional(),
   status: z.enum(STATUSES).optional(),
   priority: z.enum(PRIORITIES).optional(),
-  sort: z.enum(['name', 'price', 'priority', 'createdAt', 'status']).optional(),
+  sort: z.enum(['name', 'price', 'priority', 'createdAt', 'status', 'deliveryDate']).optional(),
   order: z.enum(['asc', 'desc']).optional(),
 });
 

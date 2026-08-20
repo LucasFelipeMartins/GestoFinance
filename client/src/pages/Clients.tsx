@@ -22,6 +22,7 @@ const SORT_OPTIONS = [
   { value: 'name', label: 'Nome' },
   { value: 'price', label: 'Preço' },
   { value: 'priority', label: 'Prioridade' },
+  { value: 'deliveryDate', label: 'Data de entrega' },
   { value: 'status', label: 'Status' },
 ];
 
@@ -30,7 +31,7 @@ export default function Clients() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<EntityStatus | ''>('');
   const [priority, setPriority] = useState<Priority | ''>('');
-  const [sort, setSort] = useState<'name' | 'price' | 'priority' | 'createdAt' | 'status'>('createdAt');
+  const [sort, setSort] = useState<'name' | 'price' | 'priority' | 'createdAt' | 'status' | 'deliveryDate'>('createdAt');
   const [order, setOrder] = useState<'asc' | 'desc'>('desc');
 
   const [formOpen, setFormOpen] = useState(false);

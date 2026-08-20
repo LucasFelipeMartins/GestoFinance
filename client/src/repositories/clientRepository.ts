@@ -2,15 +2,27 @@ import { db, LocalClient } from '@/db/schema';
 import { enqueueOutbox, cancelPendingCreate } from '@/db/outbox';
 import { Client, Priority, EntityStatus } from '@/types';
 import { ClientListParams, ClientCreatePayload } from '@/services/clientService';
-import { getInitials } from '@/utils/formatters';
+import { getInitials, parseDateInput } from '@/utils/formatters';
 import { taskRepository } from './taskRepository';
 
 function toClient(row: LocalClient): Client {
-  return { ...row, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() };
+  return {
+    ...row,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+    deliveryDate: row.deliveryDate?.toISOString(),
+    completedAt: row.completedAt?.toISOString(),
+  };
 }
 
 function toLocalClient(client: Client): LocalClient {
-  return { ...client, createdAt: new Date(client.createdAt), updatedAt: new Date(client.updatedAt) };
+  return {
+    ...client,
+    createdAt: new Date(client.createdAt),
+    updatedAt: new Date(client.updatedAt),
+    deliveryDate: client.deliveryDate ? new Date(client.deliveryDate) : undefined,
+    completedAt: client.completedAt ? new Date(client.completedAt) : undefined,
+  };
 }
 
 export interface ClientFormInput {
@@ -21,6 +33,8 @@ export interface ClientFormInput {
   priority: Priority;
   status?: EntityStatus;
   avatarUrl?: string;
+  /** From an <input type="date">: "YYYY-MM-DD", or '' to clear it. */
+  deliveryDate?: string;
 }
 
 async function list(params: ClientListParams = {}): Promise<Client[]> {
@@ -69,6 +83,7 @@ async function create(input: ClientFormInput): Promise<Client> {
     status: input.status ?? 'pending',
     avatarUrl: input.avatarUrl,
     initials: getInitials(input.name),
+    deliveryDate: parseDateInput(input.deliveryDate ?? ''),
     createdAt: now,
     updatedAt: now,
   };
@@ -84,6 +99,7 @@ async function create(input: ClientFormInput): Promise<Client> {
     priority: row.priority,
     status: row.status,
     avatarUrl: row.avatarUrl,
+    deliveryDate: row.deliveryDate?.toISOString(),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -101,6 +117,8 @@ async function update(id: string, input: Partial<ClientFormInput>): Promise<Clie
     ...existing,
     ...input,
     initials: input.name ? getInitials(input.name) : existing.initials,
+    deliveryDate:
+      input.deliveryDate === undefined ? existing.deliveryDate : parseDateInput(input.deliveryDate),
     updatedAt: now,
   };
 
@@ -113,6 +131,9 @@ async function update(id: string, input: Partial<ClientFormInput>): Promise<Clie
     priority: row.priority,
     status: row.status,
     avatarUrl: row.avatarUrl,
+    // '' rather than undefined so a cleared date survives JSON and the
+    // server can tell 'clear it' from 'field not included'.
+    deliveryDate: row.deliveryDate?.toISOString() ?? '',
     updatedAt: row.updatedAt.toISOString(),
   });
 
@@ -124,9 +145,14 @@ async function updateStatus(id: string, status: EntityStatus): Promise<Client> {
   if (!existing) throw new Error('Cliente não encontrado localmente.');
 
   const now = new Date();
-  const row: LocalClient = { ...existing, status, updatedAt: now };
+  const completedAt = status === 'completed' ? now : undefined;
+  const row: LocalClient = { ...existing, status, updatedAt: now, completedAt };
   await db.clients.put(row);
-  await enqueueOutbox('client', id, 'status', { status, updatedAt: now.toISOString() });
+  await enqueueOutbox('client', id, 'status', {
+    status,
+    updatedAt: now.toISOString(),
+    completedAt: completedAt?.toISOString(),
+  });
 
   return toClient(row);
 }

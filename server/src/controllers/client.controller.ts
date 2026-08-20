@@ -51,6 +51,7 @@ export const createClient = asyncHandler(async (req: Request, res: Response) => 
 
   const client = await Client.create({
     ...data,
+    deliveryDate: data.deliveryDate || undefined,
     userId: req.userId,
     initials: getInitials(data.name),
   });
@@ -72,6 +73,8 @@ export const updateClient = asyncHandler(async (req: Request, res: Response) => 
   }
 
   Object.assign(client, data);
+  // '' is the caller explicitly clearing the date (see validator).
+  if (data.deliveryDate === '') client.deliveryDate = undefined;
   if (data.name) client.initials = getInitials(data.name);
 
   await client.save();
@@ -91,6 +94,7 @@ export const updateClientStatus = asyncHandler(async (req: Request, res: Respons
 
   client.status = data.status;
   client.updatedAt = data.updatedAt;
+  client.completedAt = data.status === 'completed' ? (data.completedAt ?? data.updatedAt) : undefined;
   await client.save();
 
   res.json({ client });

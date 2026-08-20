@@ -24,9 +24,11 @@ export interface MetaEntry {
 
 /** Local rows mirror the API shape but keep dates as real Date objects,
  * which IndexedDB can index directly (range queries, sorting). */
-export interface LocalClient extends Omit<Client, 'createdAt' | 'updatedAt'> {
+export interface LocalClient extends Omit<Client, 'createdAt' | 'updatedAt' | 'deliveryDate' | 'completedAt'> {
   createdAt: Date;
   updatedAt: Date;
+  deliveryDate?: Date;
+  completedAt?: Date;
 }
 
 export interface LocalTask extends Omit<Task, 'createdAt' | 'updatedAt' | 'completedAt' | 'dueDate'> {
@@ -51,6 +53,22 @@ class GestorProDB extends Dexie {
       tasks: 'id, status, priority, clientId, dueDate, updatedAt, createdAt',
       outbox: '++seq, entity, entityId, createdAt',
       meta: 'key',
+    });
+    // v2 adds the deliveryDate index on clients. Existing rows simply have
+    // no value for it — Dexie migrates in place, nothing to backfill.
+    this.version(2).stores({
+      clients: 'id, name, status, priority, deliveryDate, updatedAt, createdAt',
+    });
+    // v3 adds a compound index for the {entity, entityId} lookups used by
+    // cancelPendingCreate/pendingCountByEntity — same columns as before,
+    // just indexed together instead of scanned.
+    this.version(3).stores({
+      outbox: '++seq, entity, entityId, createdAt, [entity+entityId]',
+    });
+    // v4 adds completedAt on clients, mirroring tasks — drives the Home
+    // 24h auto-hide for completed clients.
+    this.version(4).stores({
+      clients: 'id, name, status, priority, deliveryDate, completedAt, updatedAt, createdAt',
     });
   }
 }

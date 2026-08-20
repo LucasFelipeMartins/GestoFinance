@@ -30,11 +30,25 @@ async function seed() {
 
   const now = new Date();
 
+  const daysFromNow = (days: number) => {
+    const date = new Date(now);
+    date.setDate(date.getDate() + days);
+    date.setHours(0, 0, 0, 0);
+    return date;
+  };
+
+  const hoursAgo = (hours: number) => new Date(now.getTime() - hours * 60 * 60 * 1000);
+
+  // Delivery dates span overdue / today / soon / distant so every countdown
+  // state is visible in the demo data.
+  // Maria was completed days ago — demonstrates the Home 24h auto-hide
+  // (still fully visible/manageable on the Clientes page). Carlos was
+  // completed minutes ago, so it still shows up on Home.
   const clientsData = [
-    { name: 'Maria Silva', phone: '(32) 99876-5432', service: 'Manutenção de notebook', price: 150, priority: 'critical', status: 'completed' },
-    { name: 'João Santos', phone: '(32) 98765-4321', service: 'Instalação de sistema', price: 120, priority: 'high', status: 'in-progress' },
-    { name: 'Carlos Oliveira', phone: '(32) 97654-3210', service: 'Formatação e backup', price: 200, priority: 'low', status: 'completed' },
-    { name: 'Ana Costa', phone: '(32) 98888-1111', service: 'Desenvolvimento de site', price: 350, priority: 'very-low', status: 'pending' },
+    { name: 'Maria Silva', phone: '(32) 99876-5432', service: 'Manutenção de notebook', price: 150, priority: 'critical', status: 'completed', deliveryDate: daysFromNow(-5), completedAt: hoursAgo(50) },
+    { name: 'João Santos', phone: '(32) 98765-4321', service: 'Instalação de sistema', price: 120, priority: 'high', status: 'in-progress', deliveryDate: daysFromNow(-2) },
+    { name: 'Carlos Oliveira', phone: '(32) 97654-3210', service: 'Formatação e backup', price: 200, priority: 'low', status: 'completed', deliveryDate: daysFromNow(3), completedAt: hoursAgo(1) },
+    { name: 'Ana Costa', phone: '(32) 98888-1111', service: 'Desenvolvimento de site', price: 350, priority: 'very-low', status: 'pending', deliveryDate: daysFromNow(20) },
   ] as const;
 
   const clients = await Client.insertMany(
@@ -83,12 +97,23 @@ async function seed() {
       status: 'pending',
     },
     {
+      // Completed 2 days ago — demonstrates the Home 24h auto-hide (still
+      // fully visible/manageable on the Tarefas page).
       title: 'Reunião de alinhamento',
       clientId: findClient('Carlos Oliveira'),
       dueDate: inDays(-2),
       priority: 'very-low',
       status: 'completed',
       completedAt: inDays(-2),
+    },
+    {
+      // Completed minutes ago — still shows up on Home.
+      title: 'Enviar orçamento revisado',
+      clientId: findClient('Ana Costa'),
+      dueDate: now,
+      priority: 'medium',
+      status: 'completed',
+      completedAt: hoursAgo(1),
     },
   ] as const;
 
