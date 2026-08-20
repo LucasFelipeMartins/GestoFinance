@@ -74,6 +74,60 @@ export function toDateInputValue(value: string | Date | undefined): string {
   return `${date.getFullYear()}-${month}-${day}`;
 }
 
+/**
+ * Combines a `<input type="date">` value with an optional `<input
+ * type="time">` value into one local Date. Leaving the time blank lands the
+ * result on local midnight, which hasExplicitTime treats as "no time set".
+ */
+export function parseDateTimeInput(dateValue: string, timeValue?: string): Date | undefined {
+  const date = parseDateInput(dateValue);
+  if (!date) return undefined;
+  if (timeValue) {
+    const [hours, minutes] = timeValue.split(':').map(Number);
+    if (hours !== undefined && minutes !== undefined && !Number.isNaN(hours) && !Number.isNaN(minutes)) {
+      date.setHours(hours, minutes, 0, 0);
+    }
+  }
+  return date;
+}
+
+/** Inverse half of parseDateTimeInput: a Date/ISO string to "HH:mm" in local
+ * time, or '' when there's no explicit time (see hasExplicitTime). */
+export function toTimeInputValue(value: string | Date | undefined): string {
+  if (!value || !hasExplicitTime(value)) return '';
+  const date = typeof value === 'string' ? new Date(value) : value;
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
+
+/**
+ * Whether a due date carries an explicit time-of-day rather than just a
+ * calendar date. Dates built without a time (parseDateInput /
+ * parseDateTimeInput with no timeValue) land exactly on local midnight, so
+ * that's the signal — a task genuinely due at "00:00 sharp" isn't a
+ * realistic case here, and treating it as date-only keeps the reminder
+ * feature (which needs a real timestamp) from misfiring on plain due dates.
+ */
+export function hasExplicitTime(value: string | Date | undefined): boolean {
+  if (!value) return false;
+  const date = typeof value === 'string' ? new Date(value) : value;
+  if (Number.isNaN(date.getTime())) return false;
+  return date.getHours() !== 0 || date.getMinutes() !== 0;
+}
+
+export function formatTime(value: string | Date): string {
+  const date = typeof value === 'string' ? new Date(value) : value;
+  return format(date, 'HH:mm', { locale: ptBR });
+}
+
+/** Relative day label for a task due date, plus "às HH:mm" when it carries
+ * an explicit time. */
+export function formatTaskDue(value: string | Date): string {
+  const label = formatRelativeDate(value);
+  return hasExplicitTime(value) ? `${label} às ${formatTime(value)}` : label;
+}
+
 export type DeliveryUrgency = 'overdue' | 'today' | 'soon' | 'upcoming' | 'done';
 
 export interface DeliveryCountdown {

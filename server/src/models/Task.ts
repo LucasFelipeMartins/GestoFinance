@@ -12,12 +12,19 @@ export interface TaskDocument extends Document {
    * client created offline only has a localId until it syncs, so the link
    * never needs translating to a server-assigned id. */
   clientId?: string;
+  /** May carry a real time-of-day, not just a calendar date — local midnight
+   * means "no time set" (see client's hasExplicitTime helper). */
   dueDate?: Date;
   priority: Priority;
   status: EntityStatus;
   createdAt: Date;
   updatedAt: Date;
   completedAt?: Date;
+  /** User opted in to a reminder notification 5h before dueDate. Only
+   * meaningful when dueDate has an explicit time — actual scheduling
+   * happens on-device (Capacitor local notifications / Web Notification
+   * API), this just tracks the opt-in so it survives reinstalls/syncs. */
+  reminderEnabled?: boolean;
 }
 
 const taskSchema = new Schema<TaskDocument>({
@@ -32,6 +39,7 @@ const taskSchema = new Schema<TaskDocument>({
   createdAt: { type: Date, required: true },
   updatedAt: { type: Date, required: true },
   completedAt: { type: Date },
+  reminderEnabled: { type: Boolean, default: false },
 });
 
 taskSchema.index({ userId: 1, localId: 1 }, { unique: true });

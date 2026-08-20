@@ -66,33 +66,45 @@ async function seed() {
 
   const inDays = (days: number) => new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
 
+  // Demonstrates the optional due-time + reminder opt-in: a real time of
+  // day (not local midnight) is what makes the "sininho" eligible at all.
+  // Every other seeded dueDate below uses daysFromNow (local midnight) so it
+  // reads as "date only" — the same shape a real user gets from leaving the
+  // Horário field blank.
+  const atTime = (date: Date, hours: number, minutes: number) => {
+    const withTime = new Date(date);
+    withTime.setHours(hours, minutes, 0, 0);
+    return withTime;
+  };
+
   const tasksData = [
     {
       title: 'Backup dos arquivos do cliente',
       description: 'Fazer backup completo dos arquivos e enviar para o drive.',
       clientId: findClient('Carlos Oliveira'),
-      dueDate: now,
+      dueDate: daysFromNow(0),
       priority: 'critical',
       status: 'pending',
     },
     {
       title: 'Instalar impressora',
       clientId: findClient('Maria Silva'),
-      dueDate: inDays(1),
+      dueDate: atTime(daysFromNow(1), 14, 30),
       priority: 'high',
       status: 'pending',
+      reminderEnabled: true,
     },
     {
       title: 'Atualizar antivírus',
       clientId: findClient('João Santos'),
-      dueDate: inDays(3),
+      dueDate: daysFromNow(3),
       priority: 'medium',
       status: 'in-progress',
     },
     {
       title: 'Configurar e-mail',
       clientId: findClient('Ana Costa'),
-      dueDate: inDays(5),
+      dueDate: daysFromNow(5),
       priority: 'low',
       status: 'pending',
     },
@@ -101,7 +113,7 @@ async function seed() {
       // fully visible/manageable on the Tarefas page).
       title: 'Reunião de alinhamento',
       clientId: findClient('Carlos Oliveira'),
-      dueDate: inDays(-2),
+      dueDate: daysFromNow(-2),
       priority: 'very-low',
       status: 'completed',
       completedAt: inDays(-2),
@@ -110,7 +122,7 @@ async function seed() {
       // Completed minutes ago — still shows up on Home.
       title: 'Enviar orçamento revisado',
       clientId: findClient('Ana Costa'),
-      dueDate: now,
+      dueDate: daysFromNow(0),
       priority: 'medium',
       status: 'completed',
       completedAt: hoursAgo(1),

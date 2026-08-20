@@ -4,11 +4,12 @@ import { Card } from '@/components/ui/Card';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { StatusBadge, Badge } from '@/components/ui/Badge';
 import { PriorityFlag } from '@/components/ui/PriorityFlag';
+import { ReminderBell } from '@/components/tasks/ReminderBell';
 import { useUpdateTaskStatus } from '@/hooks/useTasks';
 import { useToast } from '@/context/ToastContext';
 import { getApiErrorMessage } from '@/services/api';
 import { TaskWithClient } from '@/types';
-import { formatRelativeDate, isOverdue } from '@/utils/formatters';
+import { formatTaskDue, isOverdue } from '@/utils/formatters';
 
 export function RecentTasks({ tasks }: { tasks: TaskWithClient[] }) {
   const navigate = useNavigate();
@@ -70,11 +71,14 @@ export function RecentTasks({ tasks }: { tasks: TaskWithClient[] }) {
                   {overdue ? (
                     <Badge tone="danger">Vencida</Badge>
                   ) : task.dueDate ? (
-                    <span className="text-caption text-text-secondary">{formatRelativeDate(task.dueDate)}</span>
+                    <span className="text-caption text-text-secondary">{formatTaskDue(task.dueDate)}</span>
                   ) : null}
                   <StatusBadge status={task.status} />
                 </div>
                 <PriorityFlag priority={task.priority} />
+                <div onClick={(e) => e.stopPropagation()}>
+                  <ReminderBell task={task} />
+                </div>
               </li>
             );
           })}

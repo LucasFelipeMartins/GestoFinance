@@ -5,8 +5,9 @@ import { Checkbox } from '@/components/ui/Checkbox';
 import { PriorityFlag } from '@/components/ui/PriorityFlag';
 import { Badge } from '@/components/ui/Badge';
 import { ActionsMenu } from '@/components/ui/ActionsMenu';
+import { ReminderBell } from './ReminderBell';
 import { TaskWithClient } from '@/types';
-import { formatRelativeDate, isOverdue } from '@/utils/formatters';
+import { formatTaskDue, isOverdue } from '@/utils/formatters';
 
 interface TaskCardMobileProps {
   task: TaskWithClient;
@@ -45,12 +46,13 @@ export function TaskCardMobile({ task, onToggleComplete, onEdit, onDelete }: Tas
           overdue ? (
             <Badge tone="danger">Vencida</Badge>
           ) : (
-            <span className="text-caption text-text-secondary">{formatRelativeDate(task.dueDate)}</span>
+            <span className="text-caption text-text-secondary">{formatTaskDue(task.dueDate)}</span>
           )
         ) : (
           <span className="text-caption text-text-secondary">Sem prazo</span>
         )}
-        <div onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          <ReminderBell task={task} />
           <ActionsMenu
             items={[
               { label: 'Visualizar', icon: <Eye size={16} />, onSelect: () => navigate(`/tarefas/${task.id}`) },

@@ -21,6 +21,7 @@ export interface TaskCreatePayload {
   status: EntityStatus;
   createdAt: string;
   updatedAt: string;
+  reminderEnabled?: boolean;
 }
 
 export type TaskUpdatePayload = Partial<Omit<TaskCreatePayload, 'localId' | 'createdAt'>> & {

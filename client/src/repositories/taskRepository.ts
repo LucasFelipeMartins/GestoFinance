@@ -45,6 +45,7 @@ export interface TaskFormInput {
   dueDate?: string;
   priority: Priority;
   status?: EntityStatus;
+  reminderEnabled?: boolean;
 }
 
 async function list(params: TaskListParams = {}): Promise<TaskWithClient[]> {
@@ -96,6 +97,7 @@ async function create(input: TaskFormInput): Promise<TaskWithClient> {
     dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
     priority: input.priority,
     status: input.status ?? 'pending',
+    reminderEnabled: input.reminderEnabled ?? false,
     createdAt: now,
     updatedAt: now,
   };
@@ -110,6 +112,7 @@ async function create(input: TaskFormInput): Promise<TaskWithClient> {
     dueDate: row.dueDate?.toISOString(),
     priority: row.priority,
     status: row.status,
+    reminderEnabled: row.reminderEnabled,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -140,11 +143,18 @@ async function update(id: string, input: Partial<TaskFormInput>): Promise<TaskWi
     dueDate: row.dueDate?.toISOString(),
     priority: row.priority,
     status: row.status,
+    reminderEnabled: row.reminderEnabled ?? false,
     updatedAt: row.updatedAt.toISOString(),
   });
 
   const [withClient] = await attachClients([toTask(row)]);
   return withClient;
+}
+
+/** Quick opt-in/out toggle for the "sininho" reminder — reuses update() so
+ * it rides the same outbox/sync path as every other field edit. */
+async function setReminder(id: string, enabled: boolean): Promise<TaskWithClient> {
+  return update(id, { reminderEnabled: enabled });
 }
 
 async function updateStatus(id: string, status: EntityStatus): Promise<TaskWithClient> {
@@ -211,6 +221,7 @@ export const taskRepository = {
   create,
   update,
   updateStatus,
+  setReminder,
   remove,
   cascadeClientRemoval,
   upsertFromServer,

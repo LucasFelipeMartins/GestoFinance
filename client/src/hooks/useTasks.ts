@@ -54,6 +54,14 @@ export function useUpdateTaskStatus() {
   });
 }
 
+export function useSetTaskReminder() {
+  const invalidate = useInvalidateTasks();
+  return useMutation({
+    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) => taskRepository.setReminder(id, enabled),
+    onSuccess: invalidate,
+  });
+}
+
 export function useDeleteTask() {
   const queryClient = useQueryClient();
   return useMutation({

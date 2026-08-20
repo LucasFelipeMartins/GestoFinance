@@ -4,17 +4,13 @@ import { useCreateTask, useUpdateTask } from '@/hooks/useTasks';
 import { useToast } from '@/context/ToastContext';
 import { getApiErrorMessage } from '@/services/api';
 import { TaskWithClient } from '@/types';
+import { toDateInputValue, toTimeInputValue, parseDateTimeInput } from '@/utils/formatters';
 
 interface TaskFormModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   task?: TaskWithClient;
   lockedClientId?: string;
-}
-
-function toDateInputValue(dueDate?: string): string {
-  if (!dueDate) return '';
-  return dueDate.slice(0, 10);
 }
 
 export function TaskFormModal({ open, onOpenChange, task, lockedClientId }: TaskFormModalProps) {
@@ -30,7 +26,7 @@ export function TaskFormModal({ open, onOpenChange, task, lockedClientId }: Task
       title: values.title,
       description: values.description || undefined,
       clientId: values.clientId || undefined,
-      dueDate: values.dueDate || undefined,
+      dueDate: values.dueDate ? parseDateTimeInput(values.dueDate, values.dueTime)?.toISOString() : undefined,
       priority: values.priority,
       status: values.status,
     };
@@ -59,7 +55,12 @@ export function TaskFormModal({ open, onOpenChange, task, lockedClientId }: Task
         key={task?.id ?? 'new'}
         defaultValues={
           task
-            ? { ...task, dueDate: toDateInputValue(task.dueDate), description: task.description ?? '' }
+            ? {
+                ...task,
+                dueDate: toDateInputValue(task.dueDate),
+                dueTime: toTimeInputValue(task.dueDate),
+                description: task.description ?? '',
+              }
             : { clientId: lockedClientId }
         }
         lockedClientId={lockedClientId}

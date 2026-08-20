@@ -6,8 +6,9 @@ import { StatusBadge, Badge } from '@/components/ui/Badge';
 import { PriorityFlag } from '@/components/ui/PriorityFlag';
 import { IconButton } from '@/components/ui/IconButton';
 import { Checkbox } from '@/components/ui/Checkbox';
+import { ReminderBell } from './ReminderBell';
 import { TaskWithClient } from '@/types';
-import { formatRelativeDate, isOverdue } from '@/utils/formatters';
+import { formatTaskDue, isOverdue } from '@/utils/formatters';
 
 interface TaskTableProps {
   tasks: TaskWithClient[];
@@ -65,7 +66,7 @@ export function TaskTable({ tasks, onToggleComplete, onEdit, onDelete }: TaskTab
                   overdue ? (
                     <Badge tone="danger">Vencida</Badge>
                   ) : (
-                    <span className="whitespace-nowrap">{formatRelativeDate(task.dueDate)}</span>
+                    <span className="whitespace-nowrap">{formatTaskDue(task.dueDate)}</span>
                   )
                 ) : (
                   <span className="text-text-secondary">—</span>
@@ -79,6 +80,7 @@ export function TaskTable({ tasks, onToggleComplete, onEdit, onDelete }: TaskTab
               </Td>
               <Td onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-end gap-1">
+                  <ReminderBell task={task} />
                   <IconButton icon={<Eye size={16} />} label="Visualizar" onClick={() => navigate(`/tarefas/${task.id}`)} />
                   <IconButton icon={<Pencil size={16} />} label="Editar" onClick={() => onEdit(task)} />
                   <IconButton icon={<Trash2 size={16} />} label="Remover" variant="danger" onClick={() => onDelete(task)} />

@@ -61,12 +61,16 @@ export interface Task {
   /** References Client.id. Resolve display info via `client` (joined
    * locally), not by fetching — it must work offline. */
   clientId?: string;
+  /** May carry a real time-of-day, not just a calendar date — local
+   * midnight means "no time set" (see hasExplicitTime in formatters.ts). */
   dueDate?: string;
   priority: Priority;
   status: EntityStatus;
   createdAt: string;
   updatedAt: string;
   completedAt?: string;
+  /** Opted in to a reminder notification 5h before dueDate. */
+  reminderEnabled?: boolean;
 }
 
 export interface TaskWithClient extends Task {

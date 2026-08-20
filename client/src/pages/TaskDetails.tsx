@@ -10,10 +10,11 @@ import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { TaskFormModal } from '@/components/tasks/TaskFormModal';
 import { DeleteTaskDialog } from '@/components/tasks/DeleteTaskDialog';
+import { ReminderBell } from '@/components/tasks/ReminderBell';
 import { useTask, useUpdateTaskStatus } from '@/hooks/useTasks';
 import { useToast } from '@/context/ToastContext';
 import { getApiErrorMessage } from '@/services/api';
-import { formatDate, isOverdue } from '@/utils/formatters';
+import { formatDate, formatTaskDue, isOverdue } from '@/utils/formatters';
 
 function DetailRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
   return (
@@ -96,6 +97,7 @@ export default function TaskDetails() {
             <StatusBadge status={task.status} />
             <PriorityFlag priority={task.priority} />
             {overdue && <Badge tone="danger">Vencida</Badge>}
+            <ReminderBell task={task} />
           </div>
         </div>
 
@@ -108,7 +110,7 @@ export default function TaskDetails() {
             />
           )}
           {!client && <DetailRow icon={<User size={17} />} label="Cliente" value="Sem cliente relacionado" />}
-          <DetailRow icon={<Calendar size={17} />} label="Prazo" value={task.dueDate ? formatDate(task.dueDate) : 'Sem prazo definido'} />
+          <DetailRow icon={<Calendar size={17} />} label="Prazo" value={task.dueDate ? formatTaskDue(task.dueDate) : 'Sem prazo definido'} />
           {task.description && <DetailRow icon={<FileText size={17} />} label="Descrição" value={task.description} />}
           <DetailRow icon={<Calendar size={17} />} label="Criada em" value={formatDate(task.createdAt)} />
           <DetailRow icon={<Clock size={17} />} label="Última atualização" value={formatDate(task.updatedAt)} />

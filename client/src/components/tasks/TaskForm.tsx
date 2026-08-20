@@ -12,6 +12,7 @@ const schema = z.object({
   description: z.string().trim().optional(),
   clientId: z.string().optional(),
   dueDate: z.string().optional(),
+  dueTime: z.string().optional(),
   priority: z.enum(['critical', 'high', 'medium', 'low', 'very-low'], { message: 'Selecione uma prioridade.' }),
   status: z.enum(['pending', 'in-progress', 'completed']),
 });
@@ -49,6 +50,7 @@ export function TaskForm({
       description: '',
       clientId: lockedClientId ?? '',
       dueDate: '',
+      dueTime: '',
       priority: 'medium',
       status: 'pending',
       ...defaultValues,
@@ -86,7 +88,14 @@ export function TaskForm({
         )}
       />
 
-      <Input label="Prazo" type="date" error={errors.dueDate?.message} {...register('dueDate')} />
+      <div className="flex gap-3">
+        <div className="flex-1">
+          <Input label="Prazo" type="date" error={errors.dueDate?.message} {...register('dueDate')} />
+        </div>
+        <div className="flex-1">
+          <Input label="Horário (opcional)" type="time" error={errors.dueTime?.message} {...register('dueTime')} />
+        </div>
+      </div>
 
       <Controller
         control={control}

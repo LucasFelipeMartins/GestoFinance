@@ -10,6 +10,7 @@ const baseTaskFields = {
   dueDate: z.coerce.date().optional(),
   priority: z.enum(PRIORITIES, { message: 'Selecione uma prioridade.' }),
   status: z.enum(STATUSES).optional().default('pending'),
+  reminderEnabled: z.boolean().optional(),
 };
 
 export const createTaskSchema = z.object({
@@ -29,6 +30,7 @@ export const updateTaskSchema = z.object({
   dueDate: true,
   priority: true,
   status: true,
+  reminderEnabled: true,
 });
 
 export const updateTaskStatusSchema = z.object({
