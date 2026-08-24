@@ -1,5 +1,6 @@
 import { LogOut, Mail, User } from 'lucide-react';
 import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { Card } from '@/components/ui/Card';
 import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
@@ -15,10 +16,7 @@ export default function Settings() {
 
   return (
     <PageContainer>
-      <div>
-        <h2 className="text-h2 text-text-primary">Configurações</h2>
-        <p className="mt-1 text-body text-text-secondary">Informações da sua conta.</p>
-      </div>
+      <PageHeader title="Configurações" subtitle="Informações da sua conta." />
 
       <Card className="mx-auto w-full max-w-lg">
         <div className="flex items-center gap-4">

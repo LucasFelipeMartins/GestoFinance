@@ -24,7 +24,7 @@ export function Header() {
       <div className="min-w-0">
         <h1 className="truncate text-h1-mobile text-text-primary lg:text-h1">Olá, {firstName}!</h1>
         <p className="hidden text-body text-text-secondary sm:block">
-          Gerencie seus clientes e tarefas de forma simples e eficiente.
+          Clientes, tarefas e finanças em um só lugar.
         </p>
         <p className="text-caption text-text-secondary sm:hidden">{todayCapitalized}</p>
       </div>

@@ -2,8 +2,10 @@ import axios from 'axios';
 import { db, OutboxEntry } from './schema';
 import { clientRepository } from '@/repositories/clientRepository';
 import { taskRepository } from '@/repositories/taskRepository';
+import { financeRepository } from '@/repositories/financeRepository';
 import { clientService, ClientCreatePayload, ClientUpdatePayload } from '@/services/clientService';
 import { taskService, TaskCreatePayload, TaskUpdatePayload } from '@/services/taskService';
+import { financeService, FinanceCreatePayload, FinanceUpdatePayload } from '@/services/financeService';
 import { isOnline, subscribeConnectivity } from '@/utils/connectivity';
 import { EntityStatus } from '@/types';
 
@@ -69,7 +71,7 @@ async function pushEntry(entry: OutboxEntry): Promise<PushOutcome> {
         const payload = entry.payload as { tasksAction?: 'unlink' | 'delete' } | undefined;
         await clientService.remove(entry.entityId, payload?.tasksAction);
       }
-    } else {
+    } else if (entry.entity === 'task') {
       if (entry.type === 'create') {
         const result = await taskService.create(entry.payload as unknown as TaskCreatePayload);
         await taskRepository.replaceLocal(result);
@@ -82,6 +84,21 @@ async function pushEntry(entry: OutboxEntry): Promise<PushOutcome> {
         await taskRepository.replaceLocal(result);
       } else if (entry.type === 'delete') {
         await taskService.remove(entry.entityId);
+      }
+    } else {
+      // Finance entries have no separate 'status' op — the "já foi pago"
+      // toggle is just an update, so there are only three cases here.
+      if (entry.type === 'create') {
+        const result = await financeService.create(entry.payload as unknown as FinanceCreatePayload);
+        await financeRepository.replaceLocal(result);
+      } else if (entry.type === 'update') {
+        const result = await financeService.update(
+          entry.entityId,
+          entry.payload as unknown as FinanceUpdatePayload
+        );
+        await financeRepository.replaceLocal(result);
+      } else if (entry.type === 'delete') {
+        await financeService.remove(entry.entityId);
       }
     }
     return { kind: 'ok' };
@@ -127,7 +144,11 @@ async function pushOutbox(): Promise<void> {
 }
 
 async function pullRemote(): Promise<void> {
-  const [serverClients, serverTasks] = await Promise.all([clientService.list(), taskService.list()]);
+  const [serverClients, serverTasks, serverFinance] = await Promise.all([
+    clientService.list(),
+    taskService.list(),
+    financeService.list(),
+  ]);
 
   for (const client of serverClients) {
     await clientRepository.upsertFromServer(client);
@@ -135,12 +156,16 @@ async function pullRemote(): Promise<void> {
   for (const task of serverTasks) {
     await taskRepository.upsertFromServer(task);
   }
+  for (const entry of serverFinance) {
+    await financeRepository.upsertFromServer(entry);
+  }
 
   // Anything local that's fully synced (no pending outbox entry) but missing
   // from the server was deleted elsewhere — mirror that locally too.
-  const [localClientIds, localTaskIds, outboxEntries] = await Promise.all([
+  const [localClientIds, localTaskIds, localFinanceIds, outboxEntries] = await Promise.all([
     clientRepository.getAllLocalIds(),
     taskRepository.getAllLocalIds(),
+    financeRepository.getAllLocalIds(),
     db.outbox.toArray(),
   ]);
   const pendingIds = new Set(outboxEntries.map((e) => e.entityId));
@@ -156,6 +181,13 @@ async function pullRemote(): Promise<void> {
   for (const id of localTaskIds) {
     if (!serverTaskIds.has(id) && !pendingIds.has(id)) {
       await taskRepository.removeLocalOnly(id);
+    }
+  }
+
+  const serverFinanceIds = new Set(serverFinance.map((e) => e.id));
+  for (const id of localFinanceIds) {
+    if (!serverFinanceIds.has(id) && !pendingIds.has(id)) {
+      await financeRepository.removeLocalOnly(id);
     }
   }
 }

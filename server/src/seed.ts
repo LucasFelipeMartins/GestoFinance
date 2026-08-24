@@ -3,6 +3,7 @@ import { connectDatabase } from './config/db';
 import { User } from './models/User';
 import { Client } from './models/Client';
 import { Task } from './models/Task';
+import { FinanceEntry } from './models/FinanceEntry';
 import { hashPassword } from './utils/password';
 import { getInitials } from './utils/initials';
 import mongoose from 'mongoose';
@@ -27,6 +28,7 @@ async function seed() {
 
   await Client.deleteMany({ userId: user._id });
   await Task.deleteMany({ userId: user._id });
+  await FinanceEntry.deleteMany({ userId: user._id });
 
   const now = new Date();
 
@@ -138,6 +140,61 @@ async function seed() {
       updatedAt: now,
     }))
   );
+
+  // ---------------------------------------------------------------
+  // Finanças: five months of history so the Home chart has a real
+  // curve to draw, plus every despesa state (em aberto, vencida, paga)
+  // and a parcelled card purchase that spreads across months.
+  // ---------------------------------------------------------------
+  const monthsAgo = (months: number, day: number) =>
+    new Date(now.getFullYear(), now.getMonth() - months, day);
+
+  const financeData = [
+    // Lucros lançados à mão — só o que NÃO vem de cliente. O valor dos
+    // clientes concluídos (Maria Silva e Carlos Oliveira, acima) entra nos
+    // lucros sozinho, derivado do preço deles, e por isso não aparece aqui:
+    // repetir seria contar o mesmo dinheiro duas vezes.
+    { kind: 'income', description: 'Venda de peças usadas', amount: 480, date: monthsAgo(4, 22), category: 'Venda' },
+    { kind: 'income', description: 'Salário', amount: 3200, date: monthsAgo(4, 5), category: 'Outros' },
+    { kind: 'income', description: 'Consultoria avulsa', amount: 1800, date: monthsAgo(3, 27), category: 'Consultoria' },
+    { kind: 'income', description: 'Salário', amount: 3200, date: monthsAgo(3, 5), category: 'Outros' },
+    { kind: 'income', description: 'Venda de notebook recondicionado', amount: 1450, date: monthsAgo(2, 9), category: 'Venda' },
+    { kind: 'income', description: 'Salário', amount: 3200, date: monthsAgo(2, 5), category: 'Outros' },
+    { kind: 'income', description: 'Suporte mensal — contrato', amount: 900, date: monthsAgo(1, 28), category: 'Recorrência' },
+    { kind: 'income', description: 'Salário', amount: 3200, date: monthsAgo(1, 5), category: 'Outros' },
+    { kind: 'income', description: 'Suporte mensal — contrato', amount: 900, date: monthsAgo(0, 10), category: 'Recorrência' },
+    { kind: 'income', description: 'Salário', amount: 3200, date: monthsAgo(0, 5), category: 'Outros' },
+
+    // Despesas — a 10x notebook started 3 months ago still bills every month.
+    { kind: 'expense', description: 'Notebook novo', amount: 6000, date: monthsAgo(3, 5), category: 'Ferramentas', paymentMethod: 'card', installments: 10, paid: true, paidAt: monthsAgo(3, 5) },
+    { kind: 'expense', description: 'Assinaturas de software', amount: 189, date: monthsAgo(2, 12), category: 'Assinaturas', paymentMethod: 'pix', installments: 1, paid: true, paidAt: monthsAgo(2, 12) },
+    { kind: 'expense', description: 'Cadeira de escritório', amount: 1200, date: monthsAgo(1, 3), category: 'Ferramentas', paymentMethod: 'card', installments: 6, paid: true, paidAt: monthsAgo(1, 3) },
+    { kind: 'expense', description: 'Internet do escritório', amount: 149, date: monthsAgo(0, 5), category: 'Assinaturas', paymentMethod: 'pix', installments: 1, paid: true, paidAt: monthsAgo(0, 5) },
+    // Vencida: due date already behind us, still unpaid.
+    { kind: 'expense', description: 'Conta de luz', amount: 320, date: daysFromNow(-4), category: 'Moradia', paymentMethod: 'pix', installments: 1, paid: false },
+    // Vence em breve — feeds the "vence(m) em 7 dias" badge.
+    { kind: 'expense', description: 'Fornecedor de peças', amount: 780, date: daysFromNow(3), category: 'Fornecedor', paymentMethod: 'card', installments: 3, paid: false },
+    { kind: 'expense', description: 'Contador', amount: 250, date: daysFromNow(6), category: 'Impostos', paymentMethod: 'pix', installments: 1, paid: false },
+    { kind: 'expense', description: 'Combustível e deslocamentos', amount: 400, date: daysFromNow(18), category: 'Transporte', paymentMethod: 'pix', installments: 1, paid: false },
+
+    // Investimentos — different percentuais do CDI, so the simulator and the
+    // portfolio estimate both have something real to work with.
+    { kind: 'investment', description: 'CDB Banco X', amount: 5000, date: monthsAgo(4, 15), category: 'CDB', cdiPercent: 110 },
+    { kind: 'investment', description: 'Tesouro Selic', amount: 2000, date: monthsAgo(2, 20), category: 'Tesouro Direto', cdiPercent: 100 },
+    { kind: 'investment', description: 'LCI isenta de IR', amount: 3000, date: monthsAgo(0, 8), category: 'LCI/LCA', cdiPercent: 95 },
+  ] as const;
+
+  await FinanceEntry.insertMany(
+    financeData.map((f) => ({
+      ...f,
+      userId: user!._id,
+      localId: crypto.randomUUID(),
+      createdAt: now,
+      updatedAt: now,
+    }))
+  );
+
+  console.log(`[seed] inserted ${financeData.length} lançamentos financeiros`);
 
   console.log('[seed] done');
   await mongoose.disconnect();

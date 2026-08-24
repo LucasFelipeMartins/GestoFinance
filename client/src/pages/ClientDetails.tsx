@@ -44,7 +44,11 @@ export default function ClientDetails() {
     if (!client) return;
     try {
       await updateStatus.mutateAsync({ id: client.id, status: 'completed' });
-      toast.success('Cliente concluído.');
+      toast.success(
+        client.price > 0
+          ? `Cliente concluído. ${formatCurrency(client.price)} entrou nos lucros.`
+          : 'Cliente concluído.'
+      );
     } catch (error) {
       toast.error(getApiErrorMessage(error));
     }

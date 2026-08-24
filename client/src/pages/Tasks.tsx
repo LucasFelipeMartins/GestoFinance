@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Plus, ListChecks, X, ArrowUpDown } from 'lucide-react';
 import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
@@ -92,15 +93,15 @@ export default function Tasks() {
 
   return (
     <PageContainer>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 className="text-h2 text-text-primary">Tarefas</h2>
-          <p className="mt-1 text-body text-text-secondary">Acompanhe o que precisa ser feito e os prazos.</p>
-        </div>
-        <Button leftIcon={<Plus size={18} />} onClick={openAdd} className="shrink-0">
-          Adicionar Tarefa
-        </Button>
-      </div>
+      <PageHeader
+        title="Tarefas"
+        subtitle="Acompanhe o que precisa ser feito e os prazos."
+        action={
+          <Button leftIcon={<Plus size={18} />} onClick={openAdd} className="shrink-0">
+            Adicionar Tarefa
+          </Button>
+        }
+      />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <SearchInput value={search} onChange={setSearch} placeholder="Buscar por título, descrição ou cliente" className="sm:max-w-xs sm:flex-1" />

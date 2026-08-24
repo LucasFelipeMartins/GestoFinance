@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Plus, Users, X, ArrowUpDown } from 'lucide-react';
 import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
@@ -16,6 +17,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { useToast } from '@/context/ToastContext';
 import { getApiErrorMessage } from '@/services/api';
 import { STATUS_OPTIONS, PRIORITY_OPTIONS, Client, EntityStatus, Priority } from '@/types';
+import { formatCurrency } from '@/utils/formatters';
 
 const SORT_OPTIONS = [
   { value: 'createdAt', label: 'Mais recentes' },
@@ -80,7 +82,11 @@ export default function Clients() {
   const handleComplete = async (client: Client) => {
     try {
       await updateStatus.mutateAsync({ id: client.id, status: 'completed' });
-      toast.success('Cliente concluído.');
+      toast.success(
+        client.price > 0
+          ? `Cliente concluído. ${formatCurrency(client.price)} entrou nos lucros.`
+          : 'Cliente concluído.'
+      );
     } catch (error) {
       toast.error(getApiErrorMessage(error));
     }
@@ -88,15 +94,15 @@ export default function Clients() {
 
   return (
     <PageContainer>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 className="text-h2 text-text-primary">Clientes</h2>
-          <p className="mt-1 text-body text-text-secondary">Gerencie sua carteira de clientes e acompanhe prioridades.</p>
-        </div>
-        <Button leftIcon={<Plus size={18} />} onClick={openAdd} className="shrink-0">
-          Adicionar Cliente
-        </Button>
-      </div>
+      <PageHeader
+        title="Clientes"
+        subtitle="Gerencie sua carteira de clientes e acompanhe prioridades."
+        action={
+          <Button leftIcon={<Plus size={18} />} onClick={openAdd} className="shrink-0">
+            Adicionar Cliente
+          </Button>
+        }
+      />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <SearchInput value={search} onChange={setSearch} placeholder="Buscar por nome, telefone ou serviço" className="sm:max-w-xs sm:flex-1" />

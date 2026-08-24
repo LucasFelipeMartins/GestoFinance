@@ -1,7 +1,7 @@
 import Dexie, { Table } from 'dexie';
-import { Client, Task, Priority, EntityStatus } from '@/types';
+import { Client, Task, FinanceEntry, Priority, EntityStatus } from '@/types';
 
-export type OutboxEntity = 'client' | 'task';
+export type OutboxEntity = 'client' | 'task' | 'finance';
 export type OutboxType = 'create' | 'update' | 'status' | 'delete';
 
 export interface OutboxEntry {
@@ -31,6 +31,14 @@ export interface LocalClient extends Omit<Client, 'createdAt' | 'updatedAt' | 'd
   completedAt?: Date;
 }
 
+export interface LocalFinanceEntry
+  extends Omit<FinanceEntry, 'date' | 'paidAt' | 'createdAt' | 'updatedAt'> {
+  date: Date;
+  paidAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface LocalTask extends Omit<Task, 'createdAt' | 'updatedAt' | 'completedAt' | 'dueDate'> {
   createdAt: Date;
   updatedAt: Date;
@@ -43,6 +51,7 @@ export interface LocalTask extends Omit<Task, 'createdAt' | 'updatedAt' | 'compl
 class GestorProDB extends Dexie {
   clients!: Table<LocalClient, string>;
   tasks!: Table<LocalTask, string>;
+  finance!: Table<LocalFinanceEntry, string>;
   outbox!: Table<OutboxEntry, number>;
   meta!: Table<MetaEntry, string>;
 
@@ -69,6 +78,14 @@ class GestorProDB extends Dexie {
     // 24h auto-hide for completed clients.
     this.version(4).stores({
       clients: 'id, name, status, priority, deliveryDate, completedAt, updatedAt, createdAt',
+    });
+    // v5 adds the finance table (lucros, despesas e investimentos in one
+    // store, split by `kind`). Purely additive — no existing store changes.
+    this.version(5).stores({
+      // No index on `paid`: IndexedDB has no boolean key type, so such an
+      // index would silently drop rows. Paid/unpaid is filtered in memory,
+      // the same way the client/task repositories filter their flags.
+      finance: 'id, kind, date, clientId, updatedAt, createdAt, [kind+date]',
     });
   }
 }

@@ -12,6 +12,9 @@ import Clients from '@/pages/Clients';
 import ClientDetails from '@/pages/ClientDetails';
 import Tasks from '@/pages/Tasks';
 import TaskDetails from '@/pages/TaskDetails';
+import Income from '@/pages/Income';
+import Expenses from '@/pages/Expenses';
+import Investments from '@/pages/Investments';
 import Settings from '@/pages/Settings';
 import NotFound from '@/pages/NotFound';
 import { runSync } from '@/db/sync';
@@ -65,6 +68,9 @@ export default function App() {
                     <Route path="/clientes/:id" element={<ClientDetails />} />
                     <Route path="/tarefas" element={<Tasks />} />
                     <Route path="/tarefas/:id" element={<TaskDetails />} />
+                    <Route path="/lucros" element={<Income />} />
+                    <Route path="/despesas" element={<Expenses />} />
+                    <Route path="/investimentos" element={<Investments />} />
                     <Route path="/configuracoes" element={<Settings />} />
                   </Route>
                 </Route>

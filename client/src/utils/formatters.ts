@@ -199,3 +199,23 @@ export function isHiddenFromHome(status: string, completedAt: string | Date | un
   if (Number.isNaN(date.getTime())) return false;
   return Date.now() - date.getTime() > HOME_HIDE_AFTER_MS;
 }
+
+/**
+ * Currency for tight spaces (chart axes, small tiles): "R$ 1,2 mil" instead
+ * of "R$ 1.200,00". Full precision still lives in the tooltip and the tables.
+ */
+export function formatCompactCurrency(value: number): string {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
+/** "Ago" / "Ago 2026" — a month label for axes and grouping headers. */
+export function formatMonthLabel(value: string | Date, withYear = false): string {
+  const date = typeof value === 'string' ? new Date(value) : value;
+  const label = format(date, withYear ? "MMM yyyy" : 'MMM', { locale: ptBR }).replace('.', '');
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}

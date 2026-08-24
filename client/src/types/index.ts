@@ -95,3 +95,76 @@ export interface DashboardSummary {
   recentClients: Client[];
   recentTasks: TaskWithClient[];
 }
+
+/* ------------------------------------------------------------------ */
+/* Finanças                                                            */
+/* ------------------------------------------------------------------ */
+
+/** The three ledgers. One entity, one table, one sync path — `kind` is the
+ * discriminator and each page is just a filtered view of it. */
+export type FinanceKind = 'income' | 'expense' | 'investment';
+
+/** How a despesa gets paid. `card` is the only one that carries parcelas. */
+export type PaymentMethod = 'pix' | 'card';
+
+export const FINANCE_KIND_OPTIONS: { value: FinanceKind; label: string }[] = [
+  { value: 'income', label: 'Lucro' },
+  { value: 'expense', label: 'Despesa' },
+  { value: 'investment', label: 'Investimento' },
+];
+
+export const PAYMENT_METHOD_OPTIONS: { value: PaymentMethod; label: string }[] = [
+  { value: 'pix', label: 'Pix' },
+  { value: 'card', label: 'Cartão' },
+];
+
+/** Suggestions only — the field stays free text so nobody is boxed in. */
+export const FINANCE_CATEGORIES: Record<FinanceKind, string[]> = {
+  income: ['Serviço', 'Venda', 'Manutenção', 'Consultoria', 'Recorrência', 'Outros'],
+  expense: ['Fornecedor', 'Ferramentas', 'Assinaturas', 'Impostos', 'Transporte', 'Moradia', 'Outros'],
+  investment: ['CDB', 'Tesouro Direto', 'LCI/LCA', 'Fundo', 'Poupança', 'Outros'],
+};
+
+/**
+ * Where a lançamento came from.
+ *
+ * `manual` is everything the user typed into the Finanças forms — vendas,
+ * salários, contas, aplicações. `client` marks the receita that a concluded
+ * Client produces on its own: it is derived at read time from the client's
+ * price, never stored, so it always matches the client and disappears if the
+ * client is reopened or removed. Derived entries are read-only here — the
+ * client is where you edit them.
+ */
+export type FinanceSource = 'manual' | 'client';
+
+export interface FinanceEntry {
+  id: string;
+  kind: FinanceKind;
+  description: string;
+  /** Always the FULL value in BRL, never a parcela — the monthly share of a
+   * card purchase is derived (amount / installments). */
+  amount: number;
+  /** income → recebido em; expense → vence em; investment → aplicado em. */
+  date: string;
+  category?: string;
+  notes?: string;
+  /** The Client that produced this receita. Only set on derived entries. */
+  clientId?: string;
+  /** Absent on stored rows (they are all manual); set on derived ones. */
+  source?: FinanceSource;
+
+  // --- expense-only ---
+  paid: boolean;
+  paidAt?: string;
+  paymentMethod?: PaymentMethod;
+  /** 1 for pix or à vista; > 1 spreads `amount` over that many months. */
+  installments?: number;
+
+  // --- investment-only ---
+  /** Percentage OF the CDI (e.g. 110 = 110% do CDI), how Brazilian fixed
+   * income is actually quoted. */
+  cdiPercent?: number;
+
+  createdAt: string;
+  updatedAt: string;
+}

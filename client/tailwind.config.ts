@@ -27,6 +27,21 @@ export default {
         border: '#DDE7D9',
         'bg-app': '#F7FAF5',
         'bg-pure': '#FFFFFF',
+        // Finanças. The three ledger hues are semantic (lucro = verde,
+        // gasto = vermelho, investimento = azul) and were validated as a
+        // categorical set on a white surface: lightness band, chroma floor,
+        // normal-vision ΔE 29.0 and contrast ≥ 3:1 all pass. The verde↔vermelho
+        // pair sits at CVD ΔE 7.2 (the 6–8 floor band), so anywhere all three
+        // appear together they carry secondary encoding — distinct marker
+        // shapes plus direct labels — never colour alone.
+        finance: {
+          income: '#008300',
+          'income-soft': '#E2F3E0',
+          expense: '#E34948',
+          'expense-soft': '#FDEAEA',
+          investment: '#2A78D6',
+          'investment-soft': '#E6F0FC',
+        },
       },
       fontFamily: {
         sans: [

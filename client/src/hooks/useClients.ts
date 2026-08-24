@@ -26,6 +26,10 @@ function useInvalidateClients() {
   return () => {
     queryClient.invalidateQueries({ queryKey: ['clients'] });
     queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    // A concluded client is a lucro (financeRepository derives it), and its
+    // price and status both feed that — so any client change can move the
+    // financial numbers.
+    queryClient.invalidateQueries({ queryKey: ['finance'] });
   };
 }
 
@@ -72,6 +76,7 @@ export function useDeleteClient() {
       });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['finance'] });
     },
   });
 }
