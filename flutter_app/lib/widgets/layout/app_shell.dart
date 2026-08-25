@@ -49,6 +49,11 @@ const _navSections = <({String title, List<NavItem> items})>[
           label: 'Investimentos',
           icon: Icons.savings_rounded,
           color: AppColors.financeInvestment),
+      NavItem(
+          route: '/metas',
+          label: 'Metas',
+          icon: Icons.flag_rounded,
+          color: AppColors.sageGreen),
     ],
   ),
 ];
@@ -483,6 +488,7 @@ class _BottomNav extends ConsumerWidget {
                 active: location.startsWith('/lucros') ||
                     location.startsWith('/despesas') ||
                     location.startsWith('/investimentos') ||
+                    location.startsWith('/metas') ||
                     location.startsWith('/configuracoes'),
                 onTap: () => _showMoreSheet(context, ref),
               ),
@@ -545,6 +551,15 @@ Future<void> _showCreateSheet(BuildContext context) {
           onTap: () {
             Navigator.of(sheetContext).pop();
             context.go('/tarefas?new=1');
+          },
+        ),
+        _SheetRow(
+          icon: Icons.flag_rounded,
+          label: 'Criar meta',
+          color: AppColors.sageGreen,
+          onTap: () {
+            Navigator.of(sheetContext).pop();
+            context.go('/metas?new=1');
           },
         ),
         for (final kind in FinanceKind.values)

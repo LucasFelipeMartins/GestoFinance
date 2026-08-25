@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -117,7 +116,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
-/// The Android download.
+/// Getting the app onto a phone.
 ///
 /// It lives here rather than only in the sidebar because the sidebar is
 /// desktop-only — on a phone this screen (reached from "Mais") is the only
@@ -125,7 +124,7 @@ class SettingsScreen extends ConsumerWidget {
 class _DownloadAppCard extends StatelessWidget {
   const _DownloadAppCard();
 
-  Future<void> _download(BuildContext context) async {
+  Future<void> _downloadAndroid(BuildContext context) async {
     try {
       final launched = await launchUrl(_apkUrl, mode: LaunchMode.externalApplication);
       if (!launched && context.mounted) {
@@ -144,10 +143,6 @@ class _DownloadAppCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // On iOS an APK is of no use to the person holding the phone, so the copy
-    // says what it is for rather than pretending it will install here.
-    final isIos = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
-
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -163,14 +158,11 @@ class _DownloadAppCard extends StatelessWidget {
               child: const Icon(Icons.smartphone_rounded, size: 20, color: AppColors.sageGreen),
             ),
             const SizedBox(width: 12),
-            const Expanded(child: Text('Baixar o app', style: AppText.h3)),
+            const Expanded(child: Text('Instalar no celular', style: AppText.h3)),
           ]),
           const SizedBox(height: 8),
           Text(
-            isIos
-                ? 'Baixe o instalador Android (.apk) para usar o GestorPro em um aparelho Android.'
-                : 'Instale o GestorPro no seu Android para usar o app fora do navegador, '
-                    'inclusive offline.',
+            'Use o GestorPro fora do navegador, com ícone próprio e funcionando offline.',
             style: AppText.body.copyWith(color: AppColors.textSecondary),
           ),
           const SizedBox(height: 16),
@@ -178,12 +170,109 @@ class _DownloadAppCard extends StatelessWidget {
             label: 'Baixar para Android',
             icon: Icons.download_rounded,
             expand: true,
-            onPressed: () => _download(context),
+            onPressed: () => _downloadAndroid(context),
           ),
-          const SizedBox(height: 8),
-          Text('Arquivo .apk · instalação manual, fora da Play Store.', style: AppText.caption),
+          const SizedBox(height: 10),
+          AppButton(
+            label: 'Instalar no iPhone',
+            icon: Icons.phone_iphone_rounded,
+            variant: AppButtonVariant.secondary,
+            expand: true,
+            onPressed: () => _showIosInstall(context),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Android: arquivo .apk, instalação manual. iPhone: instalação pelo Safari — '
+            'a Apple não permite instalar apps fora da App Store.',
+            style: AppText.caption,
+          ),
         ],
       ),
     );
   }
+}
+
+/// On iOS there is no sideloading and no App Store build, so "Adicionar à
+/// Tela de Início" is genuinely how this app gets onto an iPhone. The web
+/// client ships a manifest and an apple-touch-icon, so it installs as a real
+/// standalone app rather than a bookmark — these are the taps to get there.
+Future<void> _showIosInstall(BuildContext context) {
+  const steps = [
+    (
+      icon: Icons.public_rounded,
+      title: 'Abra o site no Safari',
+      description: 'Precisa ser o Safari — outros navegadores no iPhone não instalam apps.',
+    ),
+    (
+      icon: Icons.ios_share_rounded,
+      title: 'Toque no botão Compartilhar',
+      description: 'O ícone de quadrado com uma seta para cima, na barra inferior.',
+    ),
+    (
+      icon: Icons.add_box_outlined,
+      title: 'Escolha "Adicionar à Tela de Início"',
+      description: 'Role a lista até encontrar a opção.',
+    ),
+    (
+      icon: Icons.check_rounded,
+      title: 'Confirme em "Adicionar"',
+      description: 'O GestorPro abre em tela cheia, sem o Safari em volta.',
+    ),
+  ];
+
+  return showAppSheet<void>(
+    context,
+    title: 'Instalar no iPhone',
+    builder: (context) => Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'A Apple não permite instalar apps fora da App Store, então no iPhone a '
+          'instalação é feita pelo próprio Safari — em 4 toques.',
+          style: AppText.body.copyWith(color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: 20),
+        for (var i = 0; i < steps.length; i++) ...[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppColors.teaGreen.withValues(alpha: 0.5),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(steps[i].icon, size: 18, color: AppColors.sageGreen),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('${i + 1}. ${steps[i].title}', style: AppText.bodyStrong),
+                    Text(steps[i].description, style: AppText.caption),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+        ],
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.bgApp,
+            borderRadius: BorderRadius.circular(AppRadius.input),
+          ),
+          child: Text(
+            'Instalado assim, o app guarda seus dados no aparelho e continua funcionando '
+            'sem internet — igual à versão Android.',
+            style: AppText.caption,
+          ),
+        ),
+      ],
+    ),
+  );
 }

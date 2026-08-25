@@ -6,6 +6,7 @@ import {
   Settings,
   LogOut,
   Handshake,
+  Flag,
   TrendingUp,
   Receipt,
   PiggyBank,
@@ -34,6 +35,7 @@ const NAV_SECTIONS = [
       { to: '/lucros', label: 'Lucros', icon: TrendingUp },
       { to: '/despesas', label: 'Despesas', icon: Receipt },
       { to: '/investimentos', label: 'Investimentos', icon: PiggyBank },
+      { to: '/metas', label: 'Metas', icon: Flag },
     ],
   },
 ];

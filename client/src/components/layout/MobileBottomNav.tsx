@@ -14,6 +14,7 @@ import {
   PiggyBank,
   Settings,
   Wallet,
+  Flag,
 } from 'lucide-react';
 
 const ITEMS_LEFT = [
@@ -30,12 +31,14 @@ const CREATE_ACTIONS = [
   { path: '/lucros?new=1', label: 'Adicionar lucro', icon: TrendingUp, color: '#008300' },
   { path: '/despesas?new=1', label: 'Adicionar despesa', icon: Receipt, color: '#E34948' },
   { path: '/investimentos?new=1', label: 'Adicionar investimento', icon: PiggyBank, color: '#2A78D6' },
+  { path: '/metas?new=1', label: 'Criar meta', icon: Flag, color: '#629460' },
 ];
 
 const MORE_LINKS = [
   { path: '/lucros', label: 'Lucros', icon: TrendingUp, color: '#008300' },
   { path: '/despesas', label: 'Despesas', icon: Receipt, color: '#E34948' },
   { path: '/investimentos', label: 'Investimentos', icon: PiggyBank, color: '#2A78D6' },
+  { path: '/metas', label: 'Metas', icon: Flag, color: '#629460' },
   { path: '/configuracoes', label: 'Configurações', icon: Settings, color: '#629460' },
 ];
 

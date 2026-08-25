@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'screens/auth_screens.dart';
 import 'screens/clients_screen.dart';
 import 'screens/finance_screens.dart';
+import 'screens/goals_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/tasks_screen.dart';
@@ -77,6 +78,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/lucros', builder: (context, state) => const IncomeScreen()),
           GoRoute(path: '/despesas', builder: (context, state) => const ExpensesScreen()),
           GoRoute(path: '/investimentos', builder: (context, state) => const InvestmentsScreen()),
+          GoRoute(
+            path: '/metas',
+            builder: (context, state) => GoalsScreen(
+              openFormOnEnter: state.uri.queryParameters['new'] == '1',
+            ),
+          ),
           GoRoute(path: '/configuracoes', builder: (context, state) => const SettingsScreen()),
         ],
       ),

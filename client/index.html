@@ -10,7 +10,19 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;650;700&display=swap"
       rel="stylesheet"
     />
-    <title>GestorPro — Clientes &amp; Tarefas</title>
+    <meta name="theme-color" content="#243119" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- iOS has no sideloading, so "Adicionar à Tela de Início" is how the
+         app gets onto an iPhone. These are what make that a real install
+         (own icon, own window, no Safari chrome) instead of a bookmark. -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="GestorPro" />
+
+    <title>GestorPro — Clientes, Tarefas e Finanças</title>
   </head>
   <body>
     <div id="root"></div>

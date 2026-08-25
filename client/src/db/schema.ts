@@ -103,6 +103,13 @@ class GestorProDB extends Dexie {
       // the same way the client/task repositories filter their flags.
       finance: 'id, kind, date, clientId, updatedAt, createdAt, [kind+date]',
     });
+    // v6 adds Metas: the goal itself plus its deposits, kept in separate
+    // stores so two devices adding money offline both survive (a single
+    // running total would resolve last-write-wins and drop one).
+    this.version(6).stores({
+      goals: 'id, targetDate, completedAt, updatedAt, createdAt',
+      goalContributions: 'id, goalId, date, updatedAt, createdAt',
+    });
   }
 }
 

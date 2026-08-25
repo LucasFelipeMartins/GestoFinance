@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Flag, Plus, CheckCircle2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Flag, Plus, CheckCircle2, ArrowRight } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { SkeletonCard } from '@/components/ui/Skeleton';
@@ -89,10 +90,16 @@ export function GoalsPanel({ limit = 4 }: { limit?: number }) {
         </ul>
       )}
 
-      {all.length > visible.length && (
-        <p className="mt-3 text-caption text-text-secondary">
-          + {all.length - visible.length} outra(s) meta(s)
-        </p>
+      {all.length > 0 && (
+        <Link
+          to="/metas"
+          className="mt-4 inline-flex items-center gap-1 self-start text-body-strong text-sage-green hover:underline"
+        >
+          {all.length > visible.length
+            ? `Ver todas as ${all.length} metas`
+            : 'Abrir página de metas'}
+          <ArrowRight size={15} />
+        </Link>
       )}
 
       <GoalFormModal
