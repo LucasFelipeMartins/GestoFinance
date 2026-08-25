@@ -4,6 +4,7 @@ import { User } from './models/User';
 import { Client } from './models/Client';
 import { Task } from './models/Task';
 import { FinanceEntry } from './models/FinanceEntry';
+import { Goal, GoalContribution } from './models/Goal';
 import { hashPassword } from './utils/password';
 import { getInitials } from './utils/initials';
 import mongoose from 'mongoose';
@@ -29,6 +30,8 @@ async function seed() {
   await Client.deleteMany({ userId: user._id });
   await Task.deleteMany({ userId: user._id });
   await FinanceEntry.deleteMany({ userId: user._id });
+  await Goal.deleteMany({ userId: user._id });
+  await GoalContribution.deleteMany({ userId: user._id });
 
   const now = new Date();
 
@@ -195,6 +198,58 @@ async function seed() {
   );
 
   console.log(`[seed] inserted ${financeData.length} lançamentos financeiros`);
+
+  // ---------------------------------------------------------------
+  // Metas: one well underway, one just started and one already
+  // reached, so every state of the progress bar is visible at once.
+  // ---------------------------------------------------------------
+  const goalsData = [
+    { title: 'Viajar', targetAmount: 1200, targetDate: monthsAgo(-5, 10) },
+    { title: 'Notebook novo', targetAmount: 6000, targetDate: monthsAgo(-12, 1) },
+    { title: 'Reserva de emergência', targetAmount: 2000, targetDate: monthsAgo(-1, 20) },
+  ] as const;
+
+  const goals = await Goal.insertMany(
+    goalsData.map((g) => ({
+      ...g,
+      userId: user!._id,
+      localId: crypto.randomUUID(),
+      createdAt: now,
+      updatedAt: now,
+    }))
+  );
+
+  const findGoal = (title: string) => goals.find((g) => g.title === title)!.localId;
+
+  const contributionsData = [
+    // 'Viajar' is 45% of the way there.
+    { goalId: findGoal('Viajar'), amount: 300, date: monthsAgo(2, 12), note: 'Primeiro depósito' },
+    { goalId: findGoal('Viajar'), amount: 240, date: monthsAgo(1, 12) },
+    // 'Notebook novo' has barely started.
+    { goalId: findGoal('Notebook novo'), amount: 500, date: monthsAgo(0, 6) },
+    // 'Reserva de emergência' is already complete.
+    { goalId: findGoal('Reserva de emergência'), amount: 1200, date: monthsAgo(3, 8) },
+    { goalId: findGoal('Reserva de emergência'), amount: 800, date: monthsAgo(1, 8) },
+  ] as const;
+
+  await GoalContribution.insertMany(
+    contributionsData.map((c) => ({
+      ...c,
+      userId: user!._id,
+      localId: crypto.randomUUID(),
+      createdAt: now,
+      updatedAt: now,
+    }))
+  );
+
+  // The reserve goal is already funded, so it starts life marked done —
+  // the same thing the clients do when a deposit crosses the target.
+  await Goal.updateOne(
+    { userId: user._id, localId: findGoal('Reserva de emergência') },
+    { completedAt: monthsAgo(1, 8) }
+  );
+
+  console.log(`[seed] inserted ${goalsData.length} metas`);
 
   console.log('[seed] done');
   await mongoose.disconnect();

@@ -3,9 +3,17 @@ import { db, OutboxEntry } from './schema';
 import { clientRepository } from '@/repositories/clientRepository';
 import { taskRepository } from '@/repositories/taskRepository';
 import { financeRepository } from '@/repositories/financeRepository';
+import { goalRepository } from '@/repositories/goalRepository';
 import { clientService, ClientCreatePayload, ClientUpdatePayload } from '@/services/clientService';
 import { taskService, TaskCreatePayload, TaskUpdatePayload } from '@/services/taskService';
 import { financeService, FinanceCreatePayload, FinanceUpdatePayload } from '@/services/financeService';
+import {
+  goalService,
+  GoalCreatePayload,
+  GoalUpdatePayload,
+  GoalContributionCreatePayload,
+  GoalContributionUpdatePayload,
+} from '@/services/goalService';
 import { isOnline, subscribeConnectivity } from '@/utils/connectivity';
 import { EntityStatus } from '@/types';
 
@@ -85,7 +93,7 @@ async function pushEntry(entry: OutboxEntry): Promise<PushOutcome> {
       } else if (entry.type === 'delete') {
         await taskService.remove(entry.entityId);
       }
-    } else {
+    } else if (entry.entity === 'finance') {
       // Finance entries have no separate 'status' op — the "já foi pago"
       // toggle is just an update, so there are only three cases here.
       if (entry.type === 'create') {
@@ -99,6 +107,36 @@ async function pushEntry(entry: OutboxEntry): Promise<PushOutcome> {
         await financeRepository.replaceLocal(result);
       } else if (entry.type === 'delete') {
         await financeService.remove(entry.entityId);
+      }
+    } else if (entry.entity === 'goal') {
+      if (entry.type === 'create') {
+        const result = await goalService.create(entry.payload as unknown as GoalCreatePayload);
+        await goalRepository.replaceGoalLocal(result);
+      } else if (entry.type === 'update') {
+        const result = await goalService.update(
+          entry.entityId,
+          entry.payload as unknown as GoalUpdatePayload
+        );
+        await goalRepository.replaceGoalLocal(result);
+      } else if (entry.type === 'delete') {
+        await goalService.remove(entry.entityId);
+      }
+    } else {
+      // A deposit. It's its own record, so it pushes independently of its
+      // goal — that's what keeps two offline devices from losing one of them.
+      if (entry.type === 'create') {
+        const result = await goalService.createContribution(
+          entry.payload as unknown as GoalContributionCreatePayload
+        );
+        await goalRepository.replaceContributionLocal(result);
+      } else if (entry.type === 'update') {
+        const result = await goalService.updateContribution(
+          entry.entityId,
+          entry.payload as unknown as GoalContributionUpdatePayload
+        );
+        await goalRepository.replaceContributionLocal(result);
+      } else if (entry.type === 'delete') {
+        await goalService.removeContribution(entry.entityId);
       }
     }
     return { kind: 'ok' };
@@ -144,10 +182,11 @@ async function pushOutbox(): Promise<void> {
 }
 
 async function pullRemote(): Promise<void> {
-  const [serverClients, serverTasks, serverFinance] = await Promise.all([
+  const [serverClients, serverTasks, serverFinance, serverGoals] = await Promise.all([
     clientService.list(),
     taskService.list(),
     financeService.list(),
+    goalService.list(),
   ]);
 
   for (const client of serverClients) {
@@ -159,13 +198,28 @@ async function pullRemote(): Promise<void> {
   for (const entry of serverFinance) {
     await financeRepository.upsertFromServer(entry);
   }
+  for (const goal of serverGoals.goals) {
+    await goalRepository.upsertGoalFromServer(goal);
+  }
+  for (const contribution of serverGoals.contributions) {
+    await goalRepository.upsertContributionFromServer(contribution);
+  }
 
   // Anything local that's fully synced (no pending outbox entry) but missing
   // from the server was deleted elsewhere — mirror that locally too.
-  const [localClientIds, localTaskIds, localFinanceIds, outboxEntries] = await Promise.all([
+  const [
+    localClientIds,
+    localTaskIds,
+    localFinanceIds,
+    localGoalIds,
+    localContributionIds,
+    outboxEntries,
+  ] = await Promise.all([
     clientRepository.getAllLocalIds(),
     taskRepository.getAllLocalIds(),
     financeRepository.getAllLocalIds(),
+    goalRepository.getAllGoalIds(),
+    goalRepository.getAllContributionIds(),
     db.outbox.toArray(),
   ]);
   const pendingIds = new Set(outboxEntries.map((e) => e.entityId));
@@ -188,6 +242,20 @@ async function pullRemote(): Promise<void> {
   for (const id of localFinanceIds) {
     if (!serverFinanceIds.has(id) && !pendingIds.has(id)) {
       await financeRepository.removeLocalOnly(id);
+    }
+  }
+
+  const serverGoalIds = new Set(serverGoals.goals.map((g) => g.id));
+  for (const id of localGoalIds) {
+    if (!serverGoalIds.has(id) && !pendingIds.has(id)) {
+      await goalRepository.removeGoalLocalOnly(id);
+    }
+  }
+
+  const serverContributionIds = new Set(serverGoals.contributions.map((c) => c.id));
+  for (const id of localContributionIds) {
+    if (!serverContributionIds.has(id) && !pendingIds.has(id)) {
+      await goalRepository.removeContributionLocalOnly(id);
     }
   }
 }

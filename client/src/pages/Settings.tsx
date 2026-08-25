@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/context/AuthContext';
 import { useLogoutConfirm } from '@/hooks/useLogoutConfirm';
 import { SyncIndicator } from '@/components/layout/SyncIndicator';
+import { DownloadAppCard } from '@/components/settings/DownloadAppCard';
 
 export default function Settings() {
   const { user } = useAuth();
@@ -60,6 +61,8 @@ export default function Settings() {
           Sair da conta
         </Button>
       </Card>
+
+      <DownloadAppCard />
       {dialog}
     </PageContainer>
   );

@@ -168,3 +168,67 @@ export interface FinanceEntry {
   createdAt: string;
   updatedAt: string;
 }
+
+/* ------------------------------------------------------------------ */
+/* Metas                                                               */
+/* ------------------------------------------------------------------ */
+
+/** Something the user is saving toward: "Viajar", "Notebook novo". */
+export interface Goal {
+  id: string;
+  title: string;
+  /** How much they want to have put aside by `targetDate`. */
+  targetAmount: number;
+  /**
+   * When they want to get there.
+   *
+   * Stored as a real date rather than the "5 meses" the form asks for: a
+   * stored duration would silently mean something different tomorrow, while
+   * a date keeps meaning the same day forever.
+   */
+  targetDate: string;
+  notes?: string;
+  /** Set when the target is reached, so it can be celebrated once and then
+   * stop competing for attention on Home. */
+  completedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * One deposit toward a goal.
+ *
+ * Deliberately its own record rather than a running total on the Goal: two
+ * devices each adding a deposit while offline both survive, because each is
+ * an independent create. A single `savedAmount` field would resolve
+ * last-write-wins and quietly drop one of them.
+ */
+export interface GoalContribution {
+  id: string;
+  /** References Goal.id. */
+  goalId: string;
+  /** Negative is allowed on purpose — it is how a mistaken deposit gets
+   * undone without erasing the history of what happened. */
+  amount: number;
+  date: string;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** A goal with its deposits already folded in — what every view renders. */
+export interface GoalProgress {
+  goal: Goal;
+  /** Newest first. */
+  contributions: GoalContribution[];
+  saved: number;
+  remaining: number;
+  /** 0..1, clamped — a goal that overshot still reads as full, not 130%. */
+  percent: number;
+  isComplete: boolean;
+  isOverdue: boolean;
+  /** Whole months left, floored at zero. */
+  monthsLeft: number;
+  /** What still needs to go in each month to land on time. */
+  monthlyNeeded: number;
+}

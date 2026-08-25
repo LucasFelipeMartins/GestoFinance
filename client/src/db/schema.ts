@@ -1,7 +1,7 @@
 import Dexie, { Table } from 'dexie';
-import { Client, Task, FinanceEntry, Priority, EntityStatus } from '@/types';
+import { Client, Task, FinanceEntry, Goal, GoalContribution, Priority, EntityStatus } from '@/types';
 
-export type OutboxEntity = 'client' | 'task' | 'finance';
+export type OutboxEntity = 'client' | 'task' | 'finance' | 'goal' | 'goalContribution';
 export type OutboxType = 'create' | 'update' | 'status' | 'delete';
 
 export interface OutboxEntry {
@@ -39,6 +39,20 @@ export interface LocalFinanceEntry
   updatedAt: Date;
 }
 
+export interface LocalGoal extends Omit<Goal, 'targetDate' | 'completedAt' | 'createdAt' | 'updatedAt'> {
+  targetDate: Date;
+  completedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface LocalGoalContribution
+  extends Omit<GoalContribution, 'date' | 'createdAt' | 'updatedAt'> {
+  date: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface LocalTask extends Omit<Task, 'createdAt' | 'updatedAt' | 'completedAt' | 'dueDate'> {
   createdAt: Date;
   updatedAt: Date;
@@ -52,6 +66,8 @@ class GestorProDB extends Dexie {
   clients!: Table<LocalClient, string>;
   tasks!: Table<LocalTask, string>;
   finance!: Table<LocalFinanceEntry, string>;
+  goals!: Table<LocalGoal, string>;
+  goalContributions!: Table<LocalGoalContribution, string>;
   outbox!: Table<OutboxEntry, number>;
   meta!: Table<MetaEntry, string>;
 

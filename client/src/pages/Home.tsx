@@ -10,6 +10,7 @@ import { RecentTasks } from '@/components/dashboard/RecentTasks';
 import { FinanceKpis } from '@/components/finance/FinanceKpis';
 import { FinanceChart } from '@/components/finance/FinanceChart';
 import { BillsPanel } from '@/components/finance/BillsPanel';
+import { GoalsPanel } from '@/components/goals/GoalsPanel';
 import { useDashboardSummary } from '@/hooks/useDashboard';
 import { useFinanceOverview } from '@/hooks/useFinance';
 
@@ -54,6 +55,8 @@ export default function Home() {
         </Card>
         <BillsPanel bills={overview.openBills} summary={overview.bills} />
       </div>
+
+      <GoalsPanel />
 
       <OperationSummary clients={clients} tasks={tasks} />
 

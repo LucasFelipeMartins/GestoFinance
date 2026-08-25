@@ -13,6 +13,8 @@ export async function clearLocalData(): Promise<void> {
     db.clients.clear(),
     db.tasks.clear(),
     db.finance.clear(),
+    db.goals.clear(),
+    db.goalContributions.clear(),
     db.outbox.clear(),
     db.meta.clear(),
   ]);
