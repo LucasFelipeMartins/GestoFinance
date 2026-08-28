@@ -246,6 +246,9 @@ class _RecentClients extends StatelessWidget {
   }
 }
 
+/// The open half of the workload. Home only ever gets tasks that are still
+/// pending or in progress (see DashboardRepository) — checking one off makes
+/// it leave this list at once and finish its last 24h on the Tarefas screen.
 class _RecentTasks extends StatelessWidget {
   const _RecentTasks({required this.tasks});
   final List<Task> tasks;
@@ -259,7 +262,7 @@ class _RecentTasks extends StatelessWidget {
           Row(children: [
             const Icon(Icons.checklist_rounded, size: 19, color: AppColors.sageGreen),
             const SizedBox(width: 8),
-            const Expanded(child: Text('Tarefas recentes', style: AppText.h3)),
+            const Expanded(child: Text('Tarefas pendentes', style: AppText.h3)),
             InkWell(
               onTap: () => context.go('/tarefas'),
               child: Text('Ver todas',
@@ -268,7 +271,7 @@ class _RecentTasks extends StatelessWidget {
           ]),
           const SizedBox(height: 12),
           if (tasks.isEmpty)
-            Text('Nenhuma tarefa criada ainda.',
+            Text('Nenhuma tarefa pendente. Tudo em dia!',
                 style: AppText.body.copyWith(color: AppColors.textSecondary))
           else
             for (final task in tasks)

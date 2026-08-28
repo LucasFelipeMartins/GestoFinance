@@ -8,7 +8,7 @@ import { IconButton } from '@/components/ui/IconButton';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { ReminderBell } from './ReminderBell';
 import { TaskWithClient } from '@/types';
-import { formatTaskDue, isOverdue } from '@/utils/formatters';
+import { formatCompletedRetention, formatTaskDue, isOverdue } from '@/utils/formatters';
 
 interface TaskTableProps {
   tasks: TaskWithClient[];
@@ -37,6 +37,7 @@ export function TaskTable({ tasks, onToggleComplete, onEdit, onDelete }: TaskTab
         {tasks.map((task) => {
           const client = task.client;
           const overdue = isOverdue(task.dueDate, task.status);
+          const retention = formatCompletedRetention(task);
 
           return (
             <Tr key={task.id} className="cursor-pointer" onClick={() => navigate(`/tarefas/${task.id}`)}>
@@ -76,7 +77,12 @@ export function TaskTable({ tasks, onToggleComplete, onEdit, onDelete }: TaskTab
                 <PriorityFlag priority={task.priority} />
               </Td>
               <Td>
-                <StatusBadge status={task.status} />
+                <div className="flex flex-col items-start gap-1">
+                  <StatusBadge status={task.status} />
+                  {retention && (
+                    <span className="whitespace-nowrap text-caption text-text-secondary">{retention}</span>
+                  )}
+                </div>
               </Td>
               <Td onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-end gap-1">

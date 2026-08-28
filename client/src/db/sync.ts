@@ -264,6 +264,21 @@ let syncing = false;
 
 export async function runSync(): Promise<void> {
   if (syncing) return;
+
+  // Local housekeeping first: completed tasks past their 24h stay are
+  // dropped here, and the deletes that queues go out with this very cycle.
+  // Ahead of the connectivity check on purpose — freeing local space is
+  // worth doing offline too.
+  try {
+    const purged = await taskRepository.purgeExpiredCompleted();
+    // Each purged task queued a delete; say so now, since the offline path
+    // below returns before the usual end-of-cycle refresh.
+    if (purged > 0) await refreshPendingCount();
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn('[sync] purge failed', err);
+  }
+
   const online = await isOnline();
   setStatus({ isOnline: online });
   if (!online) return;

@@ -42,6 +42,14 @@ const taskSchema = new Schema<TaskDocument>({
   reminderEnabled: { type: Boolean, default: false },
 });
 
+// A completed task is kept for 24h and then dropped for good, so the
+// collection only ever holds what is still actionable plus the last day of
+// finished work. Only completed tasks carry completedAt (the status and
+// update handlers unset it when one is reopened), so nothing else is ever
+// touched. The controller sweeps the same cutoff on every list, since
+// Mongo's TTL monitor runs on its own schedule.
+taskSchema.index({ completedAt: 1 }, { expireAfterSeconds: 24 * 60 * 60 });
+
 taskSchema.index({ userId: 1, localId: 1 }, { unique: true });
 taskSchema.index({ userId: 1, status: 1 });
 taskSchema.index({ userId: 1, priority: 1 });

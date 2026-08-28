@@ -188,16 +188,69 @@ export function getDeliveryCountdown(
 const HOME_HIDE_AFTER_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Completed items stay on Home for a day so a "just finished" client/task
- * is still visible right after wrapping up, then fall off to declutter —
- * they remain fully visible/manageable on the Clientes/Tarefas pages either
- * way, this only affects the Home "recent" lists.
+ * Completed clients stay on Home for a day so a "just finished" project is
+ * still visible right after wrapping up, then fall off to declutter — they
+ * remain fully visible/manageable on the Clientes page either way, this only
+ * affects the Home "recent" list.
+ *
+ * Tasks are deliberately not on this rule: a checked-off task leaves Home
+ * immediately (see dashboardRepository) and lives out its last 24h on the
+ * Tarefas page instead.
  */
 export function isHiddenFromHome(status: string, completedAt: string | Date | undefined): boolean {
   if (status !== 'completed' || !completedAt) return false;
   const date = typeof completedAt === 'string' ? new Date(completedAt) : completedAt;
   if (Number.isNaN(date.getTime())) return false;
   return Date.now() - date.getTime() > HOME_HIDE_AFTER_MS;
+}
+
+/** How long a completed task is kept before it is purged for good. */
+export const COMPLETED_TASK_TTL_MS = 24 * 60 * 60 * 1000;
+
+/** The subset of a task the retention helpers below need. */
+interface CompletableTask {
+  status: string;
+  completedAt?: string | Date;
+  updatedAt: string | Date;
+}
+
+/**
+ * When a completed task stops existing: 24h after it was checked off.
+ *
+ * Tasks completed through the edit form before `completedAt` was kept in
+ * step with `status` carry no completion stamp — `updatedAt` is the closest
+ * thing to one, and using it means those rows still age out instead of
+ * lingering forever. Returns undefined for anything not completed.
+ */
+export function completedTaskExpiresAt(task: CompletableTask): Date | undefined {
+  if (task.status !== 'completed') return undefined;
+  const stamp = task.completedAt ?? task.updatedAt;
+  const date = typeof stamp === 'string' ? new Date(stamp) : stamp;
+  if (Number.isNaN(date.getTime())) return undefined;
+  return new Date(date.getTime() + COMPLETED_TASK_TTL_MS);
+}
+
+/** Whether a completed task has outlived its 24h stay and is due to be
+ * purged (see taskRepository.purgeExpiredCompleted). */
+export function isExpiredCompletedTask(task: CompletableTask): boolean {
+  const expiresAt = completedTaskExpiresAt(task);
+  return expiresAt !== undefined && expiresAt.getTime() <= Date.now();
+}
+
+/** "Some em 23 h" — how much of the 24h stay a completed task has left, so
+ * it reads as on its way out rather than gone by accident. */
+export function formatCompletedRetention(task: CompletableTask): string | undefined {
+  const expiresAt = completedTaskExpiresAt(task);
+  if (!expiresAt) return undefined;
+
+  const msLeft = expiresAt.getTime() - Date.now();
+  if (msLeft <= 0) return 'Removendo…';
+
+  const hours = Math.floor(msLeft / (60 * 60 * 1000));
+  if (hours >= 1) return `Some em ${hours} h`;
+
+  const minutes = Math.max(1, Math.round(msLeft / (60 * 1000)));
+  return `Some em ${minutes} min`;
 }
 
 /**

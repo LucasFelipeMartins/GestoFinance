@@ -10,6 +10,10 @@ const baseTaskFields = {
   dueDate: z.coerce.date().optional(),
   priority: z.enum(PRIORITIES, { message: 'Selecione uma prioridade.' }),
   status: z.enum(STATUSES).optional().default('pending'),
+  // Sent whenever status is 'completed' so the 24h retention counts from the
+  // moment the client checked it off, not from when the write reached us —
+  // an edit made offline can arrive hours later.
+  completedAt: z.coerce.date().optional(),
   reminderEnabled: z.boolean().optional(),
 };
 
@@ -30,6 +34,7 @@ export const updateTaskSchema = z.object({
   dueDate: true,
   priority: true,
   status: true,
+  completedAt: true,
   reminderEnabled: true,
 });
 

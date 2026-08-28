@@ -85,7 +85,7 @@ export default function Tasks() {
   const handleToggleComplete = async (task: Task) => {
     try {
       await updateStatus.mutateAsync({ id: task.id, status: task.status === 'completed' ? 'pending' : 'completed' });
-      toast.success(task.status === 'completed' ? 'Tarefa reaberta.' : 'Tarefa concluída.');
+      toast.success(task.status === 'completed' ? 'Tarefa reaberta.' : 'Tarefa concluída. Será removida em 24h.');
     } catch (error) {
       toast.error(getApiErrorMessage(error));
     }
@@ -95,7 +95,7 @@ export default function Tasks() {
     <PageContainer>
       <PageHeader
         title="Tarefas"
-        subtitle="Acompanhe o que precisa ser feito e os prazos."
+        subtitle="Acompanhe o que precisa ser feito e os prazos. Tarefas concluídas ficam aqui por 24h e depois são removidas."
         action={
           <Button leftIcon={<Plus size={18} />} onClick={openAdd} className="shrink-0">
             Adicionar Tarefa

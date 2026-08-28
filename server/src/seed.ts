@@ -69,8 +69,6 @@ async function seed() {
 
   const findClient = (name: string) => clients.find((c) => c.name === name)!.localId;
 
-  const inDays = (days: number) => new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
-
   // Demonstrates the optional due-time + reminder opt-in: a real time of
   // day (not local midnight) is what makes the "sininho" eligible at all.
   // Every other seeded dueDate below uses daysFromNow (local midnight) so it
@@ -114,17 +112,18 @@ async function seed() {
       status: 'pending',
     },
     {
-      // Completed 2 days ago — demonstrates the Home 24h auto-hide (still
-      // fully visible/manageable on the Tarefas page).
+      // Completed 20h ago — near the end of the 24h stay a finished task
+      // gets on the Tarefas page before it is deleted for good.
       title: 'Reunião de alinhamento',
       clientId: findClient('Carlos Oliveira'),
       dueDate: daysFromNow(-2),
       priority: 'very-low',
       status: 'completed',
-      completedAt: inDays(-2),
+      completedAt: hoursAgo(20),
     },
     {
-      // Completed minutes ago — still shows up on Home.
+      // Completed an hour ago. Like every completed task it is already off
+      // Home — Home only carries what is still open.
       title: 'Enviar orçamento revisado',
       clientId: findClient('Ana Costa'),
       dueDate: daysFromNow(0),

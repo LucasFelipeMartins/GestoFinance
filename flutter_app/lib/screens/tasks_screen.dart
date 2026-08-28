@@ -267,7 +267,8 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
     return PageBody(children: [
       PageHeader(
         title: 'Tarefas',
-        subtitle: 'Acompanhe o que precisa ser feito e os prazos.',
+        subtitle: 'Acompanhe o que precisa ser feito e os prazos. '
+            'Tarefas concluídas ficam aqui por 24h e depois são removidas.',
         action: AppButton(
           label: 'Adicionar tarefa',
           icon: Icons.add_rounded,
@@ -363,8 +364,11 @@ class TaskTile extends ConsumerWidget {
       ref.bumpData();
       unawaitedSync(ref);
       if (context.mounted) {
-        showToast(context,
-            next == EntityStatus.completed ? 'Tarefa concluída.' : 'Tarefa reaberta.');
+        showToast(
+            context,
+            next == EntityStatus.completed
+                ? 'Tarefa concluída. Será removida em 24h.'
+                : 'Tarefa reaberta.');
       }
     } catch (error) {
       if (context.mounted) showToast(context, apiErrorMessage(error), tone: ToastTone.error);
@@ -392,6 +396,11 @@ class TaskTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final overdue = isOverdue(task.dueDate, task.status);
     final done = task.status == EntityStatus.completed;
+    final retention = formatCompletedRetention(
+      completed: done,
+      completedAt: task.completedAt,
+      updatedAt: task.updatedAt,
+    );
 
     return AppCard(
       padding: const EdgeInsets.all(16),
@@ -422,7 +431,9 @@ class TaskTile extends ConsumerWidget {
                 const SizedBox(height: 10),
                 Wrap(spacing: 6, runSpacing: 6, children: [
                   StatusBadge(status: task.status),
-                  if (overdue)
+                  if (retention != null)
+                    AppBadge(label: retention, tone: BadgeTone.warning)
+                  else if (overdue)
                     const AppBadge(label: 'Vencida', tone: BadgeTone.danger)
                   else if (task.dueDate != null)
                     AppBadge(label: formatTaskDue(task.dueDate!)),
@@ -489,6 +500,12 @@ class TaskDetailsScreen extends ConsumerWidget {
       ]);
     }
 
+    final retention = formatCompletedRetention(
+      completed: task.status == EntityStatus.completed,
+      completedAt: task.completedAt,
+      updatedAt: task.updatedAt,
+    );
+
     return PageBody(children: [
       Row(children: [
         AppIconButton(
@@ -508,6 +525,8 @@ class TaskDetailsScreen extends ConsumerWidget {
               PriorityFlag(priority: task.priority),
               if (isOverdue(task.dueDate, task.status))
                 const AppBadge(label: 'Vencida', tone: BadgeTone.danger),
+              if (retention != null)
+                AppBadge(label: retention, tone: BadgeTone.warning),
             ]),
             const SizedBox(height: 20),
             if (task.description != null) ...[
@@ -521,7 +540,7 @@ class TaskDetailsScreen extends ConsumerWidget {
             _row(Icons.schedule_rounded, 'Criada em', formatDateTime(task.createdAt)),
             if (task.completedAt != null)
               _row(Icons.check_circle_outline_rounded, 'Concluída em',
-                  formatDateTime(task.completedAt!)),
+                  '${formatDateTime(task.completedAt!)} — removida 24h depois'),
             const SizedBox(height: 16),
             AppButton(
               label: 'Editar tarefa',

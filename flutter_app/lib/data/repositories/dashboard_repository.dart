@@ -21,8 +21,8 @@ class DashboardRepository {
     final completedClients = clients.where((c) => c.status == EntityStatus.completed).length;
     final completedTasks = tasks.where((t) => t.status == EntityStatus.completed).length;
 
-    // Completed-and-older-than-24h items stay counted above but drop out of
-    // the "recent" lists — they remain fully manageable on their own pages.
+    // Completed clients linger on Home for a day, then drop out of the
+    // "recent" list — they remain fully manageable on the Clientes screen.
     final recentClients = clients
         .where((c) => !isHiddenFromHome(
               completed: c.status == EntityStatus.completed,
@@ -31,12 +31,13 @@ class DashboardRepository {
         .take(5)
         .toList();
 
+    // Tasks leave Home the moment they are checked off: Home is meant to show
+    // what is still open. A finished task lives out its last 24h on the
+    // Tarefas screen (see TaskRepository.purgeExpiredCompleted) and is then
+    // deleted for good.
     final recentTasks = (tasks
           ..sort(defaultTaskSort))
-        .where((t) => !isHiddenFromHome(
-              completed: t.status == EntityStatus.completed,
-              completedAt: t.completedAt,
-            ))
+        .where((t) => t.status != EntityStatus.completed)
         .take(5)
         .toList();
 

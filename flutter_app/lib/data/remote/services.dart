@@ -189,6 +189,9 @@ Map<String, dynamic> taskCreatePayload(Task task) => {
       'reminderEnabled': task.reminderEnabled,
       'createdAt': task.createdAt.toIso8601String(),
       'updatedAt': task.updatedAt.toIso8601String(),
+      // Sent alongside a completed status so the server starts the same 24h
+      // retention clock the app is already counting from.
+      if (task.completedAt != null) 'completedAt': task.completedAt!.toIso8601String(),
     };
 
 Map<String, dynamic> taskUpdatePayload(Task task) => {
@@ -200,6 +203,7 @@ Map<String, dynamic> taskUpdatePayload(Task task) => {
       'status': task.status.wire,
       'reminderEnabled': task.reminderEnabled,
       'updatedAt': task.updatedAt.toIso8601String(),
+      if (task.completedAt != null) 'completedAt': task.completedAt!.toIso8601String(),
     };
 
 Map<String, dynamic> financeCreatePayload(FinanceEntry entry) => {

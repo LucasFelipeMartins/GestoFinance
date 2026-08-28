@@ -27,13 +27,18 @@ async function summary(): Promise<DashboardSummary> {
   const inProgressTasks = tasks.filter((t) => t.status === 'in-progress').length;
   const overdueTasks = tasks.filter((t) => isOverdue(t.dueDate, t.status)).length;
 
-  // Completed-and-older-than-24h items stay counted above but drop out of
-  // the "recent" lists — they're still fully manageable on their own pages.
+  // Completed clients linger on Home for a day, then drop out of the
+  // "recent" list — they're still fully manageable on the Clientes page.
   const recentClients = clients
     .filter((c) => !isHiddenFromHome(c.status, c.completedAt))
     .slice(0, 5);
+
+  // Tasks leave Home the moment they're checked off: Home is meant to show
+  // what is still open. A finished task lives out its last 24h on the
+  // Tarefas page (see taskRepository.purgeExpiredCompleted) and is then
+  // deleted for good.
   const recentTasks = [...tasks]
-    .filter((t) => !isHiddenFromHome(t.status, t.completedAt))
+    .filter((t) => t.status !== 'completed')
     .sort(defaultTaskSort)
     .slice(0, 5);
 

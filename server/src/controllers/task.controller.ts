@@ -12,6 +12,27 @@ import {
   taskQuerySchema,
 } from '../validators/task.validators';
 
+/** How long a completed task is kept before it is deleted for good. Must
+ * match COMPLETED_TASK_TTL_MS on the client, which counts down the same 24h
+ * in its own store. */
+const COMPLETED_TASK_TTL_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Deletes this user's completed tasks whose 24h retention has run out.
+ *
+ * Task.completedAt carries a TTL index that does the same thing on Mongo's
+ * own schedule (the monitor wakes roughly once a minute); sweeping here as
+ * well means a client that just pulled never receives a task the monitor has
+ * not got around to yet, so every device agrees on what still exists.
+ */
+async function purgeExpiredCompleted(userId: string): Promise<void> {
+  await Task.deleteMany({
+    userId,
+    status: 'completed',
+    completedAt: { $lte: new Date(Date.now() - COMPLETED_TASK_TTL_MS) },
+  });
+}
+
 /** Tasks reference clients by localId (a plain string), not a Mongoose ref,
  * so populate() doesn't apply — attach the small bits the UI needs manually. */
 async function attachClientInfo<T extends { clientId?: string }>(
@@ -35,6 +56,8 @@ async function attachClientInfo<T extends { clientId?: string }>(
 
 export const listTasks = asyncHandler(async (req: Request, res: Response) => {
   const query = taskQuerySchema.parse(req.query);
+
+  await purgeExpiredCompleted(req.userId!);
 
   const filter: FilterQuery<TaskDocument> = { userId: req.userId };
   if (query.status) filter.status = query.status;
@@ -85,6 +108,9 @@ export const createTask = asyncHandler(async (req: Request, res: Response) => {
   const task = await Task.create({
     ...data,
     clientId: data.clientId || undefined,
+    // A task filed as already done still gets a retention clock, whether or
+    // not the client bothered to send one.
+    completedAt: data.status === 'completed' ? data.completedAt ?? data.updatedAt : undefined,
     userId: req.userId,
   });
 
@@ -106,6 +132,15 @@ export const updateTask = asyncHandler(async (req: Request, res: Response) => {
 
   Object.assign(task, data);
   if (data.clientId === '') task.clientId = undefined;
+
+  // The edit form can flip status just like the status endpoint does, so the
+  // completion stamp has to stay in step here too — it is what the 24h
+  // retention (and the TTL index) counts from. Re-saving an already-finished
+  // task keeps the original stamp rather than restarting the clock.
+  if (data.status) {
+    task.completedAt =
+      data.status === 'completed' ? data.completedAt ?? task.completedAt ?? data.updatedAt : undefined;
+  }
 
   await task.save();
   const [withClient] = await attachClientInfo([task.toObject()], req.userId!);

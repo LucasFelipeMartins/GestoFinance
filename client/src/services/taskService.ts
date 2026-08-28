@@ -21,6 +21,9 @@ export interface TaskCreatePayload {
   status: EntityStatus;
   createdAt: string;
   updatedAt: string;
+  /** Sent alongside a 'completed' status so the server starts the same 24h
+   * retention clock the client is already counting from. */
+  completedAt?: string;
   reminderEnabled?: boolean;
 }
 

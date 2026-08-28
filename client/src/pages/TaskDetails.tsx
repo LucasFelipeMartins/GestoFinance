@@ -14,7 +14,7 @@ import { ReminderBell } from '@/components/tasks/ReminderBell';
 import { useTask, useUpdateTaskStatus } from '@/hooks/useTasks';
 import { useToast } from '@/context/ToastContext';
 import { getApiErrorMessage } from '@/services/api';
-import { formatDate, formatTaskDue, isOverdue } from '@/utils/formatters';
+import { formatCompletedRetention, formatDate, formatDateTime, formatTaskDue, isOverdue } from '@/utils/formatters';
 
 function DetailRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
   return (
@@ -72,6 +72,7 @@ export default function TaskDetails() {
 
   const client = task.client;
   const overdue = isOverdue(task.dueDate, task.status);
+  const retention = formatCompletedRetention(task);
 
   return (
     <PageContainer>
@@ -97,6 +98,7 @@ export default function TaskDetails() {
             <StatusBadge status={task.status} />
             <PriorityFlag priority={task.priority} />
             {overdue && <Badge tone="danger">Vencida</Badge>}
+            {retention && <Badge tone="warning">{retention}</Badge>}
             <ReminderBell task={task} />
           </div>
         </div>
@@ -113,6 +115,13 @@ export default function TaskDetails() {
           <DetailRow icon={<Calendar size={17} />} label="Prazo" value={task.dueDate ? formatTaskDue(task.dueDate) : 'Sem prazo definido'} />
           {task.description && <DetailRow icon={<FileText size={17} />} label="Descrição" value={task.description} />}
           <DetailRow icon={<Calendar size={17} />} label="Criada em" value={formatDate(task.createdAt)} />
+          {task.completedAt && (
+            <DetailRow
+              icon={<CheckCircle size={17} />}
+              label="Concluída em"
+              value={`${formatDateTime(task.completedAt)} — removida 24h depois`}
+            />
+          )}
           <DetailRow icon={<Clock size={17} />} label="Última atualização" value={formatDate(task.updatedAt)} />
         </div>
 

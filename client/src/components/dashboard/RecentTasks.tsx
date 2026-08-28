@@ -11,15 +11,20 @@ import { getApiErrorMessage } from '@/services/api';
 import { TaskWithClient } from '@/types';
 import { formatTaskDue, isOverdue } from '@/utils/formatters';
 
+/**
+ * The open half of the workload. Home only ever gets tasks that are still
+ * pending or in progress (see dashboardRepository) — checking one off makes
+ * it leave this list at once and finish its last 24h on the Tarefas page.
+ */
 export function RecentTasks({ tasks }: { tasks: TaskWithClient[] }) {
   const navigate = useNavigate();
   const updateStatus = useUpdateTaskStatus();
   const toast = useToast();
 
-  const handleToggle = async (task: TaskWithClient) => {
+  const handleComplete = async (task: TaskWithClient) => {
     try {
-      await updateStatus.mutateAsync({ id: task.id, status: task.status === 'completed' ? 'pending' : 'completed' });
-      toast.success(task.status === 'completed' ? 'Tarefa reaberta.' : 'Tarefa concluída.');
+      await updateStatus.mutateAsync({ id: task.id, status: 'completed' });
+      toast.success('Tarefa concluída. Ela fica em Tarefas por 24h.');
     } catch (error) {
       toast.error(getApiErrorMessage(error));
     }
@@ -30,7 +35,7 @@ export function RecentTasks({ tasks }: { tasks: TaskWithClient[] }) {
       <div className="flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-h3 text-text-primary">
           <ListChecks size={19} className="text-sage-green" />
-          Tarefas Recentes
+          Tarefas Pendentes
         </h3>
         <button
           type="button"
@@ -43,7 +48,7 @@ export function RecentTasks({ tasks }: { tasks: TaskWithClient[] }) {
       </div>
 
       {tasks.length === 0 ? (
-        <p className="mt-6 text-body text-text-secondary">Nenhuma tarefa criada ainda.</p>
+        <p className="mt-6 text-body text-text-secondary">Nenhuma tarefa pendente. Tudo em dia!</p>
       ) : (
         <ul className="mt-4 flex flex-col divide-y divide-border">
           {tasks.map((task) => {
@@ -52,8 +57,8 @@ export function RecentTasks({ tasks }: { tasks: TaskWithClient[] }) {
             return (
               <li key={task.id} className="flex items-center gap-3 py-3">
                 <Checkbox
-                  checked={task.status === 'completed'}
-                  onCheckedChange={() => handleToggle(task)}
+                  checked={false}
+                  onCheckedChange={() => handleComplete(task)}
                   label={`Marcar "${task.title}" como concluída`}
                   hideLabel
                 />
@@ -62,9 +67,7 @@ export function RecentTasks({ tasks }: { tasks: TaskWithClient[] }) {
                   onClick={() => navigate(`/tarefas/${task.id}`)}
                   className="min-w-0 flex-1 text-left"
                 >
-                  <p className={`truncate text-body-strong ${task.status === 'completed' ? 'text-text-secondary line-through' : 'text-text-primary'}`}>
-                    {task.title}
-                  </p>
+                  <p className="truncate text-body-strong text-text-primary">{task.title}</p>
                   <p className="truncate text-caption text-text-secondary">{client?.name ?? 'Sem cliente'}</p>
                 </button>
                 <div className="flex shrink-0 flex-col items-end gap-1.5">

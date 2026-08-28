@@ -125,6 +125,19 @@ class SyncEngine {
   Future<void> run() async {
     if (_syncing) return;
 
+    // Local housekeeping first: completed tasks past their 24h stay are
+    // dropped here, and the deletes that queues go out with this very cycle.
+    // Ahead of the connectivity check on purpose — freeing local space is
+    // worth doing offline too.
+    try {
+      final purged = await tasks.purgeExpiredCompleted();
+      // Each purged task queued a delete; say so now, since the offline path
+      // below returns before the usual end-of-cycle refresh.
+      if (purged > 0) _refreshPendingCount();
+    } catch (error) {
+      debugPrint('[sync] purge failed: $error');
+    }
+
     final online = await _isOnline();
     status.value = status.value.copyWith(isOnline: online);
     if (!online) return;

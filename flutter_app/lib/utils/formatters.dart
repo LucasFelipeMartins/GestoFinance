@@ -146,10 +146,67 @@ DeliveryCountdown? getDeliveryCountdown(DateTime? deliveryDate, {bool completed 
 
 const _homeHideAfter = Duration(hours: 24);
 
-/// Completed items stay on Home for a day so a "just finished" client/task is
+/// Completed clients stay on Home for a day so a "just finished" project is
 /// still visible right after wrapping up, then fall off to declutter — they
-/// remain fully manageable on their own pages either way.
+/// remain fully manageable on the Clientes page either way.
+///
+/// Tasks are deliberately not on this rule: a checked-off task leaves Home
+/// immediately (see DashboardRepository) and lives out its last 24h on the
+/// Tarefas screen instead.
 bool isHiddenFromHome({required bool completed, DateTime? completedAt}) {
   if (!completed || completedAt == null) return false;
   return DateTime.now().difference(completedAt) > _homeHideAfter;
+}
+
+/// How long a completed task is kept before it is purged for good.
+const completedTaskTtl = Duration(hours: 24);
+
+/// When a completed task stops existing: 24h after it was checked off.
+///
+/// Tasks completed through the edit form before `completedAt` was kept in
+/// step with `status` carry no completion stamp — `updatedAt` is the closest
+/// thing to one, and using it means those rows still age out instead of
+/// lingering forever. Null for anything not completed.
+DateTime? completedTaskExpiry({
+  required bool completed,
+  DateTime? completedAt,
+  required DateTime updatedAt,
+}) {
+  if (!completed) return null;
+  return (completedAt ?? updatedAt).add(completedTaskTtl);
+}
+
+/// Whether a completed task has outlived its 24h stay and is due to be purged
+/// (see TaskRepository.purgeExpiredCompleted).
+bool isExpiredCompletedTask({
+  required bool completed,
+  DateTime? completedAt,
+  required DateTime updatedAt,
+}) {
+  final expiry = completedTaskExpiry(
+    completed: completed,
+    completedAt: completedAt,
+    updatedAt: updatedAt,
+  );
+  return expiry != null && !expiry.isAfter(DateTime.now());
+}
+
+/// "Some em 23 h" — how much of the 24h stay a completed task has left, so it
+/// reads as on its way out rather than gone by accident.
+String? formatCompletedRetention({
+  required bool completed,
+  DateTime? completedAt,
+  required DateTime updatedAt,
+}) {
+  final expiry = completedTaskExpiry(
+    completed: completed,
+    completedAt: completedAt,
+    updatedAt: updatedAt,
+  );
+  if (expiry == null) return null;
+
+  final left = expiry.difference(DateTime.now());
+  if (left <= Duration.zero) return 'Removendo…';
+  if (left.inHours >= 1) return 'Some em ${left.inHours} h';
+  return 'Some em ${left.inMinutes < 1 ? 1 : left.inMinutes} min';
 }

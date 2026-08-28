@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/Badge';
 import { ActionsMenu } from '@/components/ui/ActionsMenu';
 import { ReminderBell } from './ReminderBell';
 import { TaskWithClient } from '@/types';
-import { formatTaskDue, isOverdue } from '@/utils/formatters';
+import { formatCompletedRetention, formatTaskDue, isOverdue } from '@/utils/formatters';
 
 interface TaskCardMobileProps {
   task: TaskWithClient;
@@ -20,6 +20,7 @@ export function TaskCardMobile({ task, onToggleComplete, onEdit, onDelete }: Tas
   const navigate = useNavigate();
   const client = task.client;
   const overdue = isOverdue(task.dueDate, task.status);
+  const retention = formatCompletedRetention(task);
 
   return (
     <Card className="flex flex-col gap-2.5 cursor-pointer" onClick={() => navigate(`/tarefas/${task.id}`)}>
@@ -41,8 +42,10 @@ export function TaskCardMobile({ task, onToggleComplete, onEdit, onDelete }: Tas
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
-        {task.dueDate ? (
+      <div className="flex items-center justify-between gap-2">
+        {retention ? (
+          <span className="text-caption text-text-secondary">Concluída · {retention}</span>
+        ) : task.dueDate ? (
           overdue ? (
             <Badge tone="danger">Vencida</Badge>
           ) : (

@@ -84,6 +84,12 @@ class TaskRepository {
   List<Task> list([TaskQuery query = const TaskQuery()]) {
     var rows = _all();
 
+    // Completed tasks past their 24h stay are already on their way out (see
+    // purgeExpiredCompleted, which runs on the sync cycle). Dropping them
+    // here too means the list never shows one in the window between expiring
+    // and the next purge pass.
+    rows = rows.where((t) => !_isExpired(t)).toList();
+
     if (query.status != null) rows = rows.where((t) => t.status == query.status).toList();
     if (query.priority != null) rows = rows.where((t) => t.priority == query.priority).toList();
     if (query.clientId != null) rows = rows.where((t) => t.clientId == query.clientId).toList();
@@ -119,6 +125,7 @@ class TaskRepository {
 
   Future<Task> create(TaskFormInput input) async {
     final now = DateTime.now();
+    final status = input.status ?? EntityStatus.pending;
     final task = Task(
       id: _uuid.v4(),
       title: input.title,
@@ -126,10 +133,14 @@ class TaskRepository {
       clientId: input.clientId,
       dueDate: input.dueDate,
       priority: input.priority,
-      status: input.status ?? EntityStatus.pending,
+      status: status,
       reminderEnabled: input.reminderEnabled ?? false,
       createdAt: now,
       updatedAt: now,
+      // A task filed as already done starts its 24h retention right away —
+      // completedAt has to be set wherever status becomes completed, not only
+      // in updateStatus, or the row would never age out.
+      completedAt: status == EntityStatus.completed ? now : null,
     );
 
     await _db.tasks.put(task.id, task.toJson());
@@ -140,6 +151,15 @@ class TaskRepository {
   Future<Task> update(String id, TaskFormInput input) async {
     final existing = get(id);
     if (existing == null) throw StateError('Tarefa não encontrada localmente.');
+
+    final now = DateTime.now();
+    final status = input.status ?? existing.status;
+    // The edit form can flip status just as the checkbox does, so keep the
+    // completion stamp in step here too — it is what the 24h retention counts
+    // from. Re-completing an already-done task keeps the original stamp
+    // rather than restarting the clock.
+    final completedAt =
+        status == EntityStatus.completed ? existing.completedAt ?? now : null;
 
     final updated = existing.copyWith(
       title: input.title,
@@ -152,7 +172,9 @@ class TaskRepository {
       priority: input.priority,
       status: input.status,
       reminderEnabled: input.reminderEnabled,
-      updatedAt: DateTime.now(),
+      updatedAt: now,
+      completedAt: completedAt,
+      clearCompletedAt: completedAt == null,
     );
 
     await _db.tasks.put(id, updated.toJson());
@@ -202,6 +224,38 @@ class TaskRepository {
     if (!cancelled) {
       await _outbox.enqueue(OutboxEntity.task, id, OutboxType.delete);
     }
+  }
+
+  bool _isExpired(Task task) => isExpiredCompletedTask(
+        completed: task.status == EntityStatus.completed,
+        completedAt: task.completedAt,
+        updatedAt: task.updatedAt,
+      );
+
+  /// Drops completed tasks whose 24h stay has run out — from the local store
+  /// now and, through the outbox, from the server on the next push. Called at
+  /// the top of every sync cycle, so it also runs offline: the local row goes
+  /// immediately and the delete rides out on reconnect.
+  ///
+  /// Returns how many rows it removed.
+  Future<int> purgeExpiredCompleted() async {
+    // A pull can hand a row back before its queued delete has made it to the
+    // server; re-queueing the same delete every cycle would just grow the
+    // outbox, so leave those to the entry that is already waiting.
+    final awaitingDelete = _outbox
+        .pending()
+        .where((e) => e.entity == OutboxEntity.task && e.type == OutboxType.delete)
+        .map((e) => e.entityId)
+        .toSet();
+
+    final expired =
+        _all().where((t) => !awaitingDelete.contains(t.id) && _isExpired(t)).toList();
+
+    for (final task in expired) {
+      await remove(task.id);
+    }
+
+    return expired.length;
   }
 
   Future<void> cascadeClientRemoval(String clientId, String action) async {
