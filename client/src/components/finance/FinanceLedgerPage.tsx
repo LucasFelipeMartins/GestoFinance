@@ -252,10 +252,10 @@ export function FinanceLedgerPage({
         />
       ) : (
         <>
-          <div className="hidden lg:block">
+          <div className="hidden xl:block">
             <FinanceEntryTable entries={entries} {...listProps} />
           </div>
-          <div className="flex flex-col gap-3 lg:hidden">
+          <div className="flex flex-col gap-3 xl:hidden">
             {entries.map((entry) => (
               <FinanceEntryCard key={entry.id} entry={entry} {...listProps} />
             ))}

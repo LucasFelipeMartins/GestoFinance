@@ -4,7 +4,7 @@ import { CARD_CLASS } from './Card';
 export function Table({ children }: { children: ReactNode }) {
   return (
     <div className={`${CARD_CLASS} overflow-x-auto`}>
-      <table className="w-full min-w-[720px] border-collapse text-left">{children}</table>
+      <table className="w-full min-w-[640px] border-collapse text-left">{children}</table>
     </div>
   );
 }

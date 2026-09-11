@@ -34,9 +34,9 @@ export function DeliveryBadge({ deliveryDate, status, showDate }: DeliveryBadgeP
         : CalendarClock;
 
   return (
-    <span className="inline-flex items-center gap-1.5">
+    <span className="inline-flex max-w-full items-center gap-1.5">
       <span
-        className="inline-flex items-center gap-1 rounded-badge px-2.5 py-1 text-caption font-medium whitespace-nowrap"
+        className="inline-flex max-w-full items-center gap-1 overflow-hidden text-ellipsis whitespace-nowrap rounded-badge px-2.5 py-1 text-caption font-medium"
         style={{ color: style.color, backgroundColor: style.bg }}
       >
         <Icon size={13} aria-hidden="true" />

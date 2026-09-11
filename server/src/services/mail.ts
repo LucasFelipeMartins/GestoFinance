@@ -46,12 +46,11 @@ let smtpTransport: nodemailer.Transporter | null = null;
 
 async function sendViaSmtp(message: MailMessage): Promise<void> {
   if (!smtpTransport) {
-    smtpTransport = nodemailer.createTransport({
-      host: env.mail.smtp.host,
-      port: env.mail.smtp.port,
-      secure: env.mail.smtp.secure,
-      auth: { user: env.mail.smtp.user, pass: env.mail.smtp.pass },
-    });
+    const { host, port, secure, user } = env.mail.smtp;
+    // Google shows app passwords as "xxxx xxxx xxxx xxxx"; the spaces are
+    // display-only and people paste them as-is.
+    const pass = host?.includes('gmail') ? env.mail.smtp.pass?.replace(/\s+/g, '') : env.mail.smtp.pass;
+    smtpTransport = nodemailer.createTransport({ host, port, secure, auth: { user, pass } });
   }
   await smtpTransport.sendMail({ from: resolveFrom(), ...message });
 }

@@ -169,10 +169,10 @@ export default function Tasks() {
         )
       ) : (
         <>
-          <div className="hidden lg:block">
+          <div className="hidden xl:block">
             <TaskTable tasks={tasks} onToggleComplete={handleToggleComplete} onEdit={openEdit} onDelete={setDeletingTask} />
           </div>
-          <div className="flex flex-col gap-3 lg:hidden">
+          <div className="flex flex-col gap-3 xl:hidden">
             {tasks.map((task) => (
               <TaskCardMobile key={task.id} task={task} onToggleComplete={handleToggleComplete} onEdit={openEdit} onDelete={setDeletingTask} />
             ))}

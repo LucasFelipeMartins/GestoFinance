@@ -164,10 +164,10 @@ export default function Clients() {
         )
       ) : (
         <>
-          <div className="hidden lg:block">
+          <div className="hidden xl:block">
             <ClientTable clients={clients} onEdit={openEdit} onComplete={handleComplete} onDelete={setDeletingClient} />
           </div>
-          <div className="flex flex-col gap-3 lg:hidden">
+          <div className="flex flex-col gap-3 xl:hidden">
             {clients.map((client) => (
               <ClientCardMobile key={client.id} client={client} onEdit={openEdit} onComplete={handleComplete} onDelete={setDeletingClient} />
             ))}

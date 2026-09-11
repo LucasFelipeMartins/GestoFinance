@@ -261,8 +261,8 @@ export function FinanceEntryTable({
 
               {isExpense && (
                 <Td>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-body text-text-secondary">{describePayment(entry, formatCurrency)}</span>
+                  <div className="flex max-w-[240px] flex-col gap-1">
+                    <span className="text-caption text-text-secondary">{describePayment(entry, formatCurrency)}</span>
                     {plan && <InstallmentProgress entry={entry} />}
                   </div>
                 </Td>

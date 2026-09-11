@@ -37,7 +37,7 @@ export function RecentClients({ clients }: { clients: Client[] }) {
               <button
                 type="button"
                 onClick={() => navigate(`/clientes/${client.id}`)}
-                className="-mx-2 flex w-[calc(100%+16px)] items-center gap-3 rounded-input px-2 py-3 text-left transition-colors hover:bg-tint"
+                className="flex w-full items-center gap-3 rounded-input py-3 text-left transition-colors hover:bg-tint sm:-mx-2 sm:w-[calc(100%+16px)] sm:px-2"
               >
                 <Avatar
                   name={client.name}
@@ -49,7 +49,7 @@ export function RecentClients({ clients }: { clients: Client[] }) {
                   <p className="truncate text-body-strong text-text-primary">{client.name}</p>
                   <p className="truncate text-caption text-text-secondary">{client.service}</p>
                   {client.deliveryDate && (
-                    <span className="mt-1 inline-flex">
+                    <span className="mt-1 flex max-w-full">
                       <DeliveryBadge deliveryDate={client.deliveryDate} status={client.status} />
                     </span>
                   )}
