@@ -108,7 +108,7 @@ export type FinanceKind = 'income' | 'expense' | 'investment';
 export type PaymentMethod = 'pix' | 'card';
 
 export const FINANCE_KIND_OPTIONS: { value: FinanceKind; label: string }[] = [
-  { value: 'income', label: 'Lucro' },
+  { value: 'income', label: 'Receita' },
   { value: 'expense', label: 'Despesa' },
   { value: 'investment', label: 'Investimento' },
 ];
@@ -159,6 +159,14 @@ export interface FinanceEntry {
   paymentMethod?: PaymentMethod;
   /** 1 for pix or à vista; > 1 spreads `amount` over that many months. */
   installments?: number;
+  /**
+   * How many parcelas are already paid (0..installments). The next one due
+   * is number `paidInstallments + 1`, falling due that many months after
+   * `date`. Kept in step with `paid`, which is true once all are in. Rows
+   * from before this field existed have no value — see paidInstallmentCount
+   * in utils/finance.ts for how they're read.
+   */
+  paidInstallments?: number;
 
   // --- investment-only ---
   /** Percentage OF the CDI (e.g. 110 = 110% do CDI), how Brazilian fixed

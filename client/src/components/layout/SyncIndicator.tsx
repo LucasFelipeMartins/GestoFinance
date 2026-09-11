@@ -24,7 +24,7 @@ export function SyncIndicator({ variant = 'sidebar' }: SyncIndicatorProps) {
 
   if (variant === 'header') {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-badge bg-white px-3 py-1.5 text-caption font-medium text-text-secondary shadow-card">
+      <span className="inline-flex h-10 items-center gap-1.5 rounded-badge bg-surface px-3 text-caption font-medium text-text-secondary shadow-card">
         {icon}
         {label}
       </span>

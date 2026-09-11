@@ -19,7 +19,7 @@ import { formatCurrency, formatDate } from '@/utils/formatters';
 function DetailRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-center gap-3 py-3">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-tea-green/50 text-sage-green">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-tint text-sage-green">
         {icon}
       </span>
       <div className="min-w-0">
@@ -46,7 +46,7 @@ export default function ClientDetails() {
       await updateStatus.mutateAsync({ id: client.id, status: 'completed' });
       toast.success(
         client.price > 0
-          ? `Cliente concluído. ${formatCurrency(client.price)} entrou nos lucros.`
+          ? `Cliente concluído. ${formatCurrency(client.price)} entrou nas receitas.`
           : 'Cliente concluído.'
       );
     } catch (error) {

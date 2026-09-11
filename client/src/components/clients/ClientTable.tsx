@@ -30,7 +30,7 @@ export function ClientTable({ clients, onEdit, onComplete, onDelete }: ClientTab
           <Th>Preço</Th>
           <Th>Entrega</Th>
           <Th>Prioridade</Th>
-          <Th>Status</Th>
+          <Th>Situação</Th>
           <Th className="text-right">Ações</Th>
         </Tr>
       </Thead>

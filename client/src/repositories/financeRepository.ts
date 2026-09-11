@@ -36,6 +36,7 @@ export interface FinanceFormInput {
   paid?: boolean;
   paymentMethod?: PaymentMethod;
   installments?: number;
+  paidInstallments?: number;
   cdiPercent?: number;
 }
 
@@ -44,14 +45,24 @@ export interface FinanceFormInput {
  * count, a despesa never a CDI rate. Applying it locally too means the row
  * the UI renders right after an edit already matches what the server will
  * store — no shape flip when the sync round-trip lands.
+ *
+ * For a despesa, `paidInstallments` is the source of truth and `paid` is
+ * derived from it (all parcelas in). A row that only carries `paid` (older
+ * data, or an edit that sent just the flag) maps to all-or-nothing.
  */
 function normalizeByKind(row: LocalFinanceEntry): LocalFinanceEntry {
   if (row.kind === 'expense') {
+    const count = row.paymentMethod === 'card' ? Math.max(1, Math.round(row.installments ?? 1)) : 1;
+    const rawPaid = row.paidInstallments ?? (row.paid ? count : 0);
+    const paidCount = Math.max(0, Math.min(count, Math.round(rawPaid)));
+    const paid = paidCount >= count;
     return {
       ...row,
       cdiPercent: undefined,
-      installments: row.paymentMethod === 'card' ? Math.max(1, row.installments ?? 1) : 1,
-      paidAt: row.paid ? (row.paidAt ?? new Date()) : undefined,
+      installments: count,
+      paidInstallments: paidCount,
+      paid,
+      paidAt: paid ? (row.paidAt ?? new Date()) : undefined,
     };
   }
   return {
@@ -60,6 +71,7 @@ function normalizeByKind(row: LocalFinanceEntry): LocalFinanceEntry {
     paidAt: undefined,
     paymentMethod: undefined,
     installments: undefined,
+    paidInstallments: undefined,
     cdiPercent: row.kind === 'investment' ? row.cdiPercent : undefined,
   };
 }
@@ -81,6 +93,7 @@ function toPayload(row: LocalFinanceEntry): Omit<FinanceCreatePayload, 'localId'
     paidAt: row.paidAt?.toISOString(),
     paymentMethod: row.paymentMethod,
     installments: row.installments,
+    paidInstallments: row.paidInstallments,
     cdiPercent: row.cdiPercent,
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -135,8 +148,8 @@ async function list(params: FinanceListParams = {}): Promise<FinanceEntry[]> {
 
   let entries = rows.map(toEntry);
 
-  // Concluded clients count as lucro, so they join the income ledger here —
-  // one place, so the chart, the painel and the Lucros page can never disagree.
+  // Concluded clients count as receita, so they join the income ledger here —
+  // one place, so the chart, the painel and the Receitas page can never disagree.
   if (!params.kind || params.kind === 'income') {
     entries = entries.concat(await deriveClientIncome());
   }
@@ -179,7 +192,7 @@ async function get(id: string): Promise<FinanceEntry | undefined> {
 /** Derived rows have no stored counterpart, so nothing here can edit them. */
 function assertStored(id: string): void {
   if (id.startsWith(CLIENT_INCOME_PREFIX)) {
-    throw new Error('Esse lucro vem de um cliente concluído. Edite o cliente para alterá-lo.');
+    throw new Error('Essa receita vem de um cliente concluído. Edite o cliente para alterá-la.');
   }
 }
 
@@ -197,6 +210,7 @@ async function create(input: FinanceFormInput): Promise<FinanceEntry> {
     paid: input.paid ?? false,
     paymentMethod: input.paymentMethod,
     installments: input.installments,
+    paidInstallments: input.paidInstallments,
     cdiPercent: input.cdiPercent,
     createdAt: now,
     updatedAt: now,
@@ -216,18 +230,30 @@ async function create(input: FinanceFormInput): Promise<FinanceEntry> {
 async function update(id: string, input: Partial<FinanceFormInput>): Promise<FinanceEntry> {
   assertStored(id);
   const existing = await db.finance.get(id);
-  if (!existing) throw new Error('Lançamento não encontrado localmente.');
+  if (!existing) throw new Error('Registro não encontrado localmente.');
 
   const now = new Date();
+
+  // A bare `paid` (the "já foi pago" toggle) means every parcela or none;
+  // it must not be overruled by a stale count left on the row.
+  const paidInstallments =
+    input.paidInstallments !== undefined
+      ? input.paidInstallments
+      : input.paid !== undefined
+        ? undefined
+        : existing.paidInstallments;
+
   const row = normalizeByKind({
     ...existing,
     ...input,
+    paidInstallments,
     date: input.date !== undefined ? (parseDateInput(input.date) ?? existing.date) : existing.date,
     category: 'category' in input ? input.category || undefined : existing.category,
     notes: 'notes' in input ? input.notes || undefined : existing.notes,
     clientId: 'clientId' in input ? input.clientId || undefined : existing.clientId,
-    // A fresh paidAt only when this edit is what flipped it to paid.
-    paidAt: input.paid && !existing.paid ? now : existing.paidAt,
+    // paidAt is only meaningful once everything is paid; normalizeByKind
+    // clears it otherwise and stamps `now` when this edit is what settled it.
+    paidAt: existing.paid ? existing.paidAt : undefined,
     updatedAt: now,
   });
 
@@ -241,6 +267,25 @@ async function update(id: string, input: Partial<FinanceFormInput>): Promise<Fin
  * other field edit, so there's no separate sync branch to keep in step. */
 async function setPaid(id: string, paid: boolean): Promise<FinanceEntry> {
   return update(id, { paid });
+}
+
+/** Settles the next open parcela of a card despesa. Once the last one is in,
+ * the despesa flips to paid on its own. */
+async function payInstallment(id: string): Promise<FinanceEntry> {
+  assertStored(id);
+  const existing = await db.finance.get(id);
+  if (!existing) throw new Error('Registro não encontrado localmente.');
+  const current = normalizeByKind(existing);
+  return update(id, { paidInstallments: (current.paidInstallments ?? 0) + 1 });
+}
+
+/** Reopens the most recently settled parcela — the undo for a mis-tap. */
+async function undoInstallment(id: string): Promise<FinanceEntry> {
+  assertStored(id);
+  const existing = await db.finance.get(id);
+  if (!existing) throw new Error('Registro não encontrado localmente.');
+  const current = normalizeByKind(existing);
+  return update(id, { paidInstallments: Math.max(0, (current.paidInstallments ?? 0) - 1) });
 }
 
 async function remove(id: string): Promise<void> {
@@ -282,6 +327,8 @@ export const financeRepository = {
   create,
   update,
   setPaid,
+  payInstallment,
+  undoInstallment,
   remove,
   upsertFromServer,
   replaceLocal,

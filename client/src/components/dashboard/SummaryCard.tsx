@@ -14,7 +14,7 @@ interface SummaryCardProps {
 export function SummaryCard({ icon, label, value, caption, percent, attention }: SummaryCardProps) {
   return (
     <Card className="flex items-center gap-4" hoverable>
-      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] bg-tea-green/60 text-sage-green">
+      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] bg-tint text-sage-green">
         {icon}
       </span>
       <div className="min-w-0 flex-1">

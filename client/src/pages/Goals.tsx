@@ -5,9 +5,10 @@ import { PageContainer } from '@/components/layout/PageContainer';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Select } from '@/components/ui/Select';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SkeletonCard } from '@/components/ui/Skeleton';
+import { StatGrid, StatTile } from '@/components/ui/StatTile';
+import { FilterBar, FilterSelect } from '@/components/ui/FilterBar';
 import { GoalProgressBar } from '@/components/goals/GoalProgressBar';
 import { GoalFormModal } from '@/components/goals/GoalFormModal';
 import { AddContributionModal } from '@/components/goals/AddContributionModal';
@@ -15,7 +16,7 @@ import { GoalDetailModal } from '@/components/goals/GoalDetailModal';
 import { useGoals } from '@/hooks/useGoals';
 import { Goal, GoalProgress } from '@/types';
 import { formatCurrency, formatDate, formatRelativeDate } from '@/utils/formatters';
-import { GOAL_ACCENT, GOAL_DONE } from '@/components/goals/goalColors';
+import { GOAL_ACCENT, GOAL_DONE, GOAL_OVERDUE } from '@/components/goals/goalColors';
 
 type Filter = 'all' | 'open' | 'done';
 
@@ -87,20 +88,20 @@ export default function Goals() {
     <PageContainer>
       <PageHeader
         title="Metas"
-        subtitle="Defina um objetivo, um valor e um prazo — e adicione dinheiro quando quiser."
+        subtitle="Defina um objetivo, um valor e um prazo — e vá guardando dinheiro quando quiser."
         action={
-          <Button leftIcon={<Plus size={18} />} onClick={openAdd} className="shrink-0">
+          <Button leftIcon={<Plus size={18} />} onClick={openAdd}>
             Nova meta
           </Button>
         }
       />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <StatGrid columns={3}>
         <StatTile
           icon={<Target size={18} />}
           label="Em andamento"
           value={String(totals.openCount)}
-          caption={`${totals.doneCount} já concluída(s)`}
+          caption={`${totals.doneCount} já concluída${totals.doneCount === 1 ? '' : 's'}`}
         />
         <StatTile
           icon={<PiggyBank size={18} />}
@@ -110,22 +111,21 @@ export default function Goals() {
         />
         <StatTile
           icon={<Flag size={18} />}
-          label="Precisa por mês"
+          label="Guardar por mês"
           value={formatCurrency(totals.monthlyTotal)}
-          caption="Somando todas as metas em aberto"
+          caption="Para todas as metas em aberto chegarem no prazo"
         />
-      </div>
+      </StatGrid>
 
       {all.length > 0 && (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="sm:w-52">
-            <Select
-              options={FILTER_OPTIONS}
-              value={filter}
-              onChange={(value) => setFilter(value as Filter)}
-            />
-          </div>
-        </div>
+        <FilterBar>
+          <FilterSelect
+            options={FILTER_OPTIONS}
+            value={filter}
+            onChange={(value) => setFilter(value as Filter)}
+            placeholder="Mostrar"
+          />
+        </FilterBar>
       )}
 
       {visible.length === 0 ? (
@@ -134,7 +134,7 @@ export default function Goals() {
           title={all.length === 0 ? 'Nenhuma meta ainda' : 'Nenhuma meta neste filtro'}
           description={
             all.length === 0
-              ? 'Crie uma meta — "Viajar", R$ 1.200, em 5 meses — e adicione valores quando quiser.'
+              ? 'Crie uma meta — "Viajar", R$ 1.200, em 5 meses — e vá adicionando valores quando quiser.'
               : 'Troque o filtro para ver as outras metas.'
           }
           action={
@@ -190,35 +190,6 @@ export default function Goals() {
   );
 }
 
-function StatTile({
-  icon,
-  label,
-  value,
-  caption,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  caption: string;
-}) {
-  return (
-    <Card className="p-4 sm:p-5">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-caption font-semibold text-text-secondary">{label}</span>
-        <span
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px]"
-          style={{ backgroundColor: '#E7F2E4', color: GOAL_ACCENT }}
-          aria-hidden="true"
-        >
-          {icon}
-        </span>
-      </div>
-      <p className="mt-3 text-h2 tabular-nums text-text-primary">{value}</p>
-      <p className="mt-0.5 truncate text-caption text-text-secondary">{caption}</p>
-    </Card>
-  );
-}
-
 /** The full-size card the dedicated page uses — roomier than the Home row,
  * with the deposit count and the prazo spelled out. */
 function GoalCard({
@@ -231,7 +202,7 @@ function GoalCard({
   onAddValue: () => void;
 }) {
   const { goal } = progress;
-  const accent = progress.isComplete ? GOAL_DONE : progress.isOverdue ? '#D93A3A' : GOAL_ACCENT;
+  const accent = progress.isComplete ? GOAL_DONE : progress.isOverdue ? GOAL_OVERDUE : GOAL_ACCENT;
 
   const deadlineLabel = progress.isComplete
     ? 'Meta alcançada!'
@@ -253,10 +224,9 @@ function GoalCard({
               {progress.isComplete && <CheckCircle2 size={17} style={{ color: GOAL_DONE }} />}
             </h3>
             <p
-              className="mt-0.5 truncate text-caption"
-              style={{
-                color: progress.isOverdue && !progress.isComplete ? '#D93A3A' : '#66705F',
-              }}
+              className={`mt-0.5 truncate text-caption ${
+                progress.isOverdue && !progress.isComplete ? 'text-danger' : 'text-text-secondary'
+              }`}
             >
               {deadlineLabel} · {formatDate(goal.targetDate)}
             </p>

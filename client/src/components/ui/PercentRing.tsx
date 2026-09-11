@@ -8,21 +8,21 @@ export function PercentRing({ value, size = 56 }: { value: number; size?: number
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={radius} stroke="#DDE7D9" strokeWidth={strokeWidth} fill="none" />
+        <circle cx={size / 2} cy={size / 2} r={radius} className="stroke-border" strokeWidth={strokeWidth} fill="none" />
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke="#629460"
+          className="stroke-sage-green"
           strokeWidth={strokeWidth}
           fill="none"
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          style={{ transition: 'stroke-dashoffset 400ms ease' }}
+          style={{ transition: 'stroke-dashoffset 600ms cubic-bezier(0.22, 1, 0.36, 1)' }}
         />
       </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-caption font-semibold text-evergreen">
+      <span className="absolute inset-0 flex items-center justify-center text-caption font-semibold text-brand">
         {clamped}%
       </span>
     </div>

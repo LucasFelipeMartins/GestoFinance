@@ -15,6 +15,7 @@ const baseFinanceFields = {
   paidAt: z.coerce.date().optional(),
   paymentMethod: z.enum(PAYMENT_METHODS).optional(),
   installments: z.coerce.number().int().min(1).max(120).optional(),
+  paidInstallments: z.coerce.number().int().min(0).max(120).optional(),
   cdiPercent: z.coerce.number().min(0).max(1000).optional(),
 };
 
@@ -42,6 +43,7 @@ export const updateFinanceSchema = z
     paidAt: true,
     paymentMethod: true,
     installments: true,
+    paidInstallments: true,
     cdiPercent: true,
   });
 

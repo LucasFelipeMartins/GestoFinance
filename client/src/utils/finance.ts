@@ -37,11 +37,7 @@ export function monthlyShares(entry: FinanceEntry): { key: string; value: number
   const start = new Date(entry.date);
   if (Number.isNaN(start.getTime())) return [];
 
-  const parcels =
-    entry.kind === 'expense' && entry.paymentMethod === 'card'
-      ? Math.max(1, Math.round(entry.installments ?? 1))
-      : 1;
-
+  const parcels = installmentCount(entry);
   const value = entry.amount / parcels;
   return Array.from({ length: parcels }, (_, i) => ({
     key: monthKey(new Date(start.getFullYear(), start.getMonth() + i, 1)),
@@ -133,17 +129,93 @@ export function sumBy(entries: FinanceEntry[], kind: FinanceKind): number {
 }
 
 /* ------------------------------------------------------------------ */
+/* Parcelas                                                            */
+/* ------------------------------------------------------------------ */
+
+/** How many parcelas a despesa has: pix and à vista are 1. */
+export function installmentCount(entry: FinanceEntry): number {
+  if (entry.kind !== 'expense' || entry.paymentMethod !== 'card') return 1;
+  return Math.max(1, Math.round(entry.installments ?? 1));
+}
+
+/** The value of one parcela — the full amount split evenly. */
+export function installmentValue(entry: FinanceEntry): number {
+  return entry.amount / installmentCount(entry);
+}
+
+/**
+ * How many parcelas are settled. Rows saved before `paidInstallments`
+ * existed only carry the old all-or-nothing `paid` flag, so that is what they
+ * fall back to.
+ */
+export function paidInstallmentCount(entry: FinanceEntry): number {
+  const count = installmentCount(entry);
+  const raw = entry.paidInstallments ?? (entry.paid ? count : 0);
+  return Math.max(0, Math.min(count, Math.round(raw)));
+}
+
+/** True when a despesa is spread over more than one month. */
+export function isInstallmentPlan(entry: FinanceEntry): boolean {
+  return installmentCount(entry) > 1;
+}
+
+/** Sum of the parcelas still open. Zero once everything is paid. */
+export function remainingAmount(entry: FinanceEntry): number {
+  if (entry.kind !== 'expense') return 0;
+  const open = installmentCount(entry) - paidInstallmentCount(entry);
+  return open <= 0 ? 0 : open * installmentValue(entry);
+}
+
+function addMonths(date: Date, months: number): Date {
+  const copy = new Date(date);
+  copy.setMonth(copy.getMonth() + months);
+  return copy;
+}
+
+export interface NextInstallment {
+  /** 1-based position of the parcela: "parcela 3 de 4". */
+  number: number;
+  total: number;
+  value: number;
+  dueDate: Date;
+}
+
+/**
+ * The parcela that comes next — what a "contas a pagar" row is really about.
+ * Parcela n falls due n−1 months after the purchase date. Undefined once the
+ * whole despesa is paid.
+ */
+export function nextInstallment(entry: FinanceEntry): NextInstallment | undefined {
+  if (entry.kind !== 'expense') return undefined;
+  const total = installmentCount(entry);
+  const paid = paidInstallmentCount(entry);
+  if (paid >= total) return undefined;
+
+  const start = new Date(entry.date);
+  if (Number.isNaN(start.getTime())) return undefined;
+
+  return {
+    number: paid + 1,
+    total,
+    value: installmentValue(entry),
+    dueDate: addMonths(start, paid),
+  };
+}
+
+/* ------------------------------------------------------------------ */
 /* Contas a pagar                                                      */
 /* ------------------------------------------------------------------ */
 
 export interface BillsSummary {
-  /** Everything still unpaid, at full value. */
+  /** What is due next, added up: one parcela per open despesa. */
   openTotal: number;
   openCount: number;
   overdueCount: number;
   overdueTotal: number;
-  /** Unpaid and falling due within the next 7 days (today included). */
+  /** Open and falling due within the next 7 days (today included). */
   dueSoonCount: number;
+  /** Every open parcela, of every open despesa — the whole debt still out. */
+  remainingTotal: number;
 }
 
 function startOfDay(date: Date): Date {
@@ -163,18 +235,21 @@ export function summarizeBills(entries: FinanceEntry[], reference = new Date()):
     overdueCount: 0,
     overdueTotal: 0,
     dueSoonCount: 0,
+    remainingTotal: 0,
   };
 
   for (const entry of entries) {
-    if (entry.kind !== 'expense' || entry.paid) continue;
+    const next = nextInstallment(entry);
+    if (!next) continue;
 
-    const due = startOfDay(new Date(entry.date));
-    summary.openTotal += entry.amount;
+    const due = startOfDay(next.dueDate);
+    summary.openTotal += next.value;
     summary.openCount += 1;
+    summary.remainingTotal += remainingAmount(entry);
 
     if (due < today) {
       summary.overdueCount += 1;
-      summary.overdueTotal += entry.amount;
+      summary.overdueTotal += next.value;
     } else if (due <= weekAhead) {
       summary.dueSoonCount += 1;
     }
@@ -183,20 +258,53 @@ export function summarizeBills(entries: FinanceEntry[], reference = new Date()):
   return summary;
 }
 
-/** True when an unpaid despesa's due date is already behind us. */
+/** True when the next open parcela's due date is already behind us. */
 export function isBillOverdue(entry: FinanceEntry, reference = new Date()): boolean {
-  if (entry.kind !== 'expense' || entry.paid) return false;
-  return startOfDay(new Date(entry.date)) < startOfDay(reference);
+  const next = nextInstallment(entry);
+  if (!next) return false;
+  return startOfDay(next.dueDate) < startOfDay(reference);
 }
 
-/** How a despesa gets paid, in one line: 'Pix' or 'Cartao 3x de R$ 100,00'. */
+/**
+ * What is still unpaid in a given month: the open parcelas whose due date
+ * lands in it. The number a person means by "quanto ainda falta pagar este
+ * mês" — paid parcelas and other months don't count.
+ */
+export function pendingForMonth(entries: FinanceEntry[], reference = new Date()): number {
+  const key = monthKey(new Date(reference.getFullYear(), reference.getMonth(), 1));
+  let total = 0;
+
+  for (const entry of entries) {
+    if (entry.kind !== 'expense') continue;
+    const count = installmentCount(entry);
+    const paid = paidInstallmentCount(entry);
+    if (paid >= count) continue;
+
+    const start = new Date(entry.date);
+    if (Number.isNaN(start.getTime())) continue;
+    const value = installmentValue(entry);
+
+    for (let i = paid; i < count; i += 1) {
+      if (monthKey(addMonths(start, i)) === key) total += value;
+    }
+  }
+
+  return total;
+}
+
+/** How a despesa gets paid, in one line: 'Pix', 'Cartão · à vista' or
+ * 'Cartão · 4x de R$ 100,00 · 2 pagas'. */
 export function describePayment(entry: FinanceEntry, formatMoney: (value: number) => string): string {
   if (entry.kind !== 'expense') return '';
   if (entry.paymentMethod !== 'card') return 'Pix';
 
-  const parcels = Math.max(1, Math.round(entry.installments ?? 1));
+  const parcels = installmentCount(entry);
   if (parcels <= 1) return 'Cartão · à vista';
-  return `Cartão · ${parcels}x de ${formatMoney(entry.amount / parcels)}`;
+
+  const paid = paidInstallmentCount(entry);
+  const progress =
+    paid >= parcels ? 'todas pagas' : paid === 0 ? 'nenhuma paga' : `${paid} paga${paid === 1 ? '' : 's'}`;
+  return `Cartão · ${parcels}x de ${formatMoney(installmentValue(entry))} · ${progress}`;
 }
 
 /* ------------------------------------------------------------------ */

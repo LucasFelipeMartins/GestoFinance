@@ -13,7 +13,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
   const variantClass =
     variant === 'danger'
       ? 'text-danger hover:bg-danger/10'
-      : 'text-text-secondary hover:bg-tea-green/50 hover:text-evergreen';
+      : 'text-text-secondary hover:bg-tint hover:text-brand';
 
   return (
     <button
@@ -21,7 +21,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
       type="button"
       aria-label={label}
       title={label}
-      className={`inline-flex h-9 w-9 items-center justify-center rounded-btn transition-colors duration-200
+      className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-btn transition-colors duration-200
         disabled:cursor-not-allowed disabled:opacity-40 ${variantClass} ${className}`}
       {...props}
     >

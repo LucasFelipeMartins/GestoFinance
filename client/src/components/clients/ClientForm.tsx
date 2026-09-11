@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Camera } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
+import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
@@ -40,7 +41,7 @@ export function ClientForm({
   onSubmit,
   onCancel,
   isSubmitting,
-  submitLabel = 'Salvar Cliente',
+  submitLabel = 'Salvar cliente',
 }: ClientFormProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -97,7 +98,7 @@ export function ClientForm({
           aria-label="Enviar foto do cliente"
         >
           <Avatar name={nameValue || 'Cliente'} initials={getInitials(nameValue || '')} src={avatarPreview} size="xl" />
-          <span className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-evergreen text-white shadow-card transition-transform group-hover:scale-105">
+          <span className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-fg shadow-card transition-transform group-hover:scale-105">
             <Camera size={15} />
           </span>
         </button>
@@ -138,14 +139,17 @@ export function ClientForm({
         {...register('service')}
       />
 
-      <Input
-        label="Preço"
-        type="number"
-        step="0.01"
-        min="0"
-        placeholder="0,00"
-        error={errors.price?.message}
-        {...register('price')}
+      <Controller
+        control={control}
+        name="price"
+        render={({ field }) => (
+          <CurrencyInput
+            label="Preço"
+            value={Number(field.value) || 0}
+            onChange={field.onChange}
+            error={errors.price?.message}
+          />
+        )}
       />
 
       <Input
@@ -176,7 +180,7 @@ export function ClientForm({
         name="status"
         render={({ field }) => (
           <Select
-            label="Status"
+            label="Situação"
             options={STATUS_OPTIONS.map((s) => ({ value: s.value, label: s.label }))}
             value={field.value}
             onChange={field.onChange}

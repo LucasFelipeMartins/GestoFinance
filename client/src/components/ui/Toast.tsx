@@ -8,15 +8,15 @@ const ICONS = {
 };
 
 const STYLES = {
-  success: 'border-sage-green/30 bg-white text-text-primary',
-  error: 'border-danger/30 bg-white text-text-primary',
-  info: 'border-border bg-white text-text-primary',
+  success: 'border-sage-green/40',
+  error: 'border-danger/40',
+  info: 'border-border',
 };
 
 const ICON_COLORS = {
   success: 'text-sage-green',
   error: 'text-danger',
-  info: 'text-muted-olive',
+  info: 'text-text-secondary',
 };
 
 export function ToastViewport({
@@ -30,9 +30,8 @@ export function ToastViewport({
 
   return (
     <div
-      className="fixed z-[100] flex flex-col gap-2 w-[calc(100%-32px)] max-w-sm
-        bottom-20 left-4 right-4
-        sm:bottom-auto sm:left-auto sm:top-4 sm:right-4 sm:w-full"
+      className="fixed bottom-24 left-4 right-4 z-[100] flex w-[calc(100%-32px)] max-w-sm flex-col gap-2
+        sm:bottom-auto sm:left-auto sm:right-4 sm:top-4 sm:w-full"
       role="region"
       aria-label="Notificações"
     >
@@ -42,15 +41,15 @@ export function ToastViewport({
           <div
             key={toast.id}
             role="status"
-            className={`flex items-start gap-3 rounded-card border px-4 py-3 shadow-elevated animate-toast-in ${STYLES[toast.variant]}`}
+            className={`flex animate-toast-in items-start gap-3 rounded-card border bg-surface-2 px-4 py-3 text-text-primary shadow-elevated ${STYLES[toast.variant]}`}
           >
             <Icon size={20} className={`mt-0.5 shrink-0 ${ICON_COLORS[toast.variant]}`} aria-hidden="true" />
-            <p className="text-body flex-1">{toast.message}</p>
+            <p className="flex-1 text-body">{toast.message}</p>
             <button
               type="button"
               onClick={() => onDismiss(toast.id)}
               aria-label="Fechar notificação"
-              className="shrink-0 text-text-secondary hover:text-text-primary transition"
+              className="shrink-0 text-text-secondary transition hover:text-text-primary"
             >
               <X size={16} />
             </button>

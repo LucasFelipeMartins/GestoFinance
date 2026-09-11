@@ -11,6 +11,19 @@
       rel="stylesheet"
     />
     <meta name="theme-color" content="#243119" />
+
+    <!-- Applies the saved theme before the first paint so a dark-mode user
+         never sees a white flash. Mirrors readInitialTheme in ThemeContext. -->
+    <script>
+      (function () {
+        try {
+          if (localStorage.getItem('gestorpro:theme') === 'dark') {
+            document.documentElement.classList.add('dark');
+            document.documentElement.style.colorScheme = 'dark';
+          }
+        } catch (e) {}
+      })();
+    </script>
     <link rel="manifest" href="/manifest.webmanifest" />
 
     <!-- iOS has no sideloading, so "Adicionar à Tela de Início" is how the

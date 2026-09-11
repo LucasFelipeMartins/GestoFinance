@@ -44,7 +44,7 @@ export function DownloadAppCard() {
     <>
       <Card className="mx-auto w-full max-w-lg">
         <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-tea-green/50 text-sage-green">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-tint text-sage-green">
             <Smartphone size={20} />
           </span>
           <h3 className="text-h3 text-text-primary">Instalar no celular</h3>
@@ -119,7 +119,7 @@ function IosInstallModal({ open, onOpenChange }: { open: boolean; onOpenChange: 
       <ol className="flex flex-col gap-4">
         {steps.map((step, index) => (
           <li key={step.title} className="flex gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-tea-green/50 text-sage-green">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-tint text-sage-green">
               {step.icon}
             </span>
             <div className="min-w-0">

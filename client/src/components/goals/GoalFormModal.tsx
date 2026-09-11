@@ -129,7 +129,7 @@ export function GoalFormModal({ open, onOpenChange, goal }: GoalFormModalProps) 
         />
 
         {targetAmount > 0 && (
-          <p className="flex items-start gap-2 rounded-input bg-tea-green/25 px-3 py-2.5 text-caption text-text-secondary">
+          <p className="flex items-start gap-2 rounded-input bg-tint px-3 py-2.5 text-caption text-text-secondary">
             <PiggyBank size={14} className="mt-0.5 shrink-0 text-sage-green" />
             Para chegar lá em {formatDate(targetDate)}, guarde cerca de{' '}
             <strong className="text-text-primary">{formatCurrency(targetAmount / monthsToTarget)}</strong> por mês.

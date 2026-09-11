@@ -2,6 +2,8 @@ import { SeriesShape } from '@/utils/financeMeta';
 
 interface SeriesMarkProps {
   shape: SeriesShape;
+  /** Any CSS colour, including `rgb(var(--…))` — applied through `style`
+   * because SVG presentation attributes can't resolve variables. */
   color: string;
   cx: number;
   cy: number;
@@ -9,14 +11,25 @@ interface SeriesMarkProps {
   size?: number;
   /** Painted as a ring so the mark stays legible where lines cross. */
   surface?: string;
+  className?: string;
+  style?: React.CSSProperties;
 }
 
 /**
  * One data point. The shape carries series identity alongside the colour —
  * see FINANCE_META for why colour alone is not enough here.
  */
-export function SeriesMark({ shape, color, cx, cy, size = 5, surface = '#FFFFFF' }: SeriesMarkProps) {
-  const ring = { stroke: surface, strokeWidth: 2 };
+export function SeriesMark({
+  shape,
+  color,
+  cx,
+  cy,
+  size = 5,
+  surface = 'rgb(var(--c-surface))',
+  className,
+  style,
+}: SeriesMarkProps) {
+  const paint: React.CSSProperties = { fill: color, stroke: surface, strokeWidth: 2, ...style };
 
   if (shape === 'square') {
     return (
@@ -26,8 +39,8 @@ export function SeriesMark({ shape, color, cx, cy, size = 5, surface = '#FFFFFF'
         width={size * 2}
         height={size * 2}
         rx={1.5}
-        fill={color}
-        {...ring}
+        className={className}
+        style={paint}
       />
     );
   }
@@ -38,10 +51,10 @@ export function SeriesMark({ shape, color, cx, cy, size = 5, surface = '#FFFFFF'
       `${cx + size * 1.15},${cy + size * 0.85}`,
       `${cx - size * 1.15},${cy + size * 0.85}`,
     ].join(' ');
-    return <polygon points={points} fill={color} strokeLinejoin="round" {...ring} />;
+    return <polygon points={points} strokeLinejoin="round" className={className} style={paint} />;
   }
 
-  return <circle cx={cx} cy={cy} r={size} fill={color} {...ring} />;
+  return <circle cx={cx} cy={cy} r={size} className={className} style={paint} />;
 }
 
 /** The same mark at legend/label size, as a standalone inline SVG. */
@@ -68,7 +81,7 @@ export function SeriesMarkKey({
           y1={size / 2}
           x2={box}
           y2={size / 2}
-          stroke={color}
+          style={{ stroke: color }}
           strokeWidth={2}
           strokeLinecap="round"
         />

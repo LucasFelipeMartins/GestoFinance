@@ -1,37 +1,36 @@
 import { FinanceLedgerPage, LedgerStat } from '@/components/finance/FinanceLedgerPage';
 import { FinanceEntry } from '@/types';
-import { summarizeBills, totalsForMonth } from '@/utils/finance';
+import { pendingForMonth, summarizeBills, totalsForMonth } from '@/utils/finance';
 import { formatCurrency } from '@/utils/formatters';
 
 function stats(entries: FinanceEntry[]): LedgerStat[] {
   const bills = summarizeBills(entries);
+  const pendingThisMonth = pendingForMonth(entries);
 
   return [
     {
-      label: 'Em aberto',
-      value: formatCurrency(bills.openTotal),
+      label: 'Falta pagar este mês',
+      value: formatCurrency(pendingThisMonth),
       caption:
         bills.openCount === 0
           ? 'Nada pendente'
-          : `${bills.openCount} conta${bills.openCount === 1 ? '' : 's'}${
-              bills.dueSoonCount > 0 ? ` · ${bills.dueSoonCount} vence(m) em 7 dias` : ''
+          : `${bills.openCount} conta${bills.openCount === 1 ? '' : 's'} em aberto${
+              bills.dueSoonCount > 0 ? ` · ${bills.dueSoonCount} vence${bills.dueSoonCount === 1 ? '' : 'm'} em 7 dias` : ''
             }`,
     },
     {
-      label: 'Vencidas',
+      label: 'Atrasadas',
       value: formatCurrency(bills.overdueTotal),
       caption:
         bills.overdueCount === 0
           ? 'Nenhuma conta atrasada'
-          : `${bills.overdueCount} conta${bills.overdueCount === 1 ? '' : 's'} atrasada${
-              bills.overdueCount === 1 ? '' : 's'
-            }`,
+          : `${bills.overdueCount} conta${bills.overdueCount === 1 ? '' : 's'} com o prazo vencido`,
       attention: bills.overdueCount > 0,
     },
     {
-      label: 'Comprometido no mês',
+      label: 'Gasto do mês',
       value: formatCurrency(totalsForMonth(entries).expense),
-      caption: 'Inclui a parcela do mês das compras no cartão',
+      caption: 'Pagas e a pagar, incluindo a parcela do mês do cartão',
     },
   ];
 }
@@ -41,9 +40,9 @@ export default function Expenses() {
     <FinanceLedgerPage
       kind="expense"
       title="Despesas"
-      subtitle="Tudo que precisa ser pago. Marque como paga, informe pix ou cartão e, no cartão, as parcelas."
+      subtitle="Tudo que precisa ser pago. No cartão, informe as parcelas e vá marcando cada uma conforme paga a fatura."
       stats={stats}
-      emptyDescription="Cadastre o que precisa ser pago para não perder nenhum vencimento."
+      emptyDescription="Registre o que precisa ser pago para não perder nenhum vencimento."
     />
   );
 }

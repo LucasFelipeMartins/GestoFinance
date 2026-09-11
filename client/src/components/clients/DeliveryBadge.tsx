@@ -2,12 +2,13 @@ import { CalendarClock, CalendarCheck, AlertTriangle } from 'lucide-react';
 import { getDeliveryCountdown, formatDate, DeliveryUrgency } from '@/utils/formatters';
 import { EntityStatus } from '@/types';
 
+/** Themed through CSS variables — see src/styles/index.css. */
 const URGENCY_STYLES: Record<DeliveryUrgency, { color: string; bg: string }> = {
-  overdue: { color: '#D93A3A', bg: '#FDECEC' },
-  today: { color: '#B26B00', bg: '#FFF2E2' },
-  soon: { color: '#8A6D1D', bg: '#FEF7DA' },
-  upcoming: { color: '#2F6B34', bg: '#DCF3DA' },
-  done: { color: '#66705F', bg: '#EFF2ED' },
+  overdue: { color: 'var(--delivery-overdue-fg)', bg: 'var(--delivery-overdue-bg)' },
+  today: { color: 'var(--delivery-today-fg)', bg: 'var(--delivery-today-bg)' },
+  soon: { color: 'var(--delivery-soon-fg)', bg: 'var(--delivery-soon-bg)' },
+  upcoming: { color: 'var(--delivery-upcoming-fg)', bg: 'var(--delivery-upcoming-bg)' },
+  done: { color: 'var(--delivery-done-fg)', bg: 'var(--delivery-done-bg)' },
 };
 
 interface DeliveryBadgeProps {

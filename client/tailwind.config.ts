@@ -1,14 +1,24 @@
 import type { Config } from 'tailwindcss';
 
+/**
+ * Every colour that changes between the light and dark themes is defined as
+ * an RGB triplet in a CSS variable (see src/styles/index.css) and referenced
+ * here with `<alpha-value>`, so `bg-surface/60` keeps working. The brand
+ * greens that are the same on both themes (sidebar, logo, tea-green accents)
+ * stay as plain hex.
+ */
+const themed = (variable: string) => `rgb(var(${variable}) / <alpha-value>)`;
+
 export default {
+  darkMode: 'class',
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {
+        // --- fixed brand palette (identical in both themes) ---
         'tea-green': '#C9F2C7',
         'light-green': '#ACECA1',
         'muted-olive': '#96BE8C',
-        'sage-green': '#629460',
         evergreen: '#243119',
         'evergreen-hover': '#31441F',
         priority: {
@@ -18,29 +28,57 @@ export default {
           low: '#7E57C2',
           'very-low': '#1E88E5',
         },
-        success: '#629460',
-        'success-light': '#C9F2C7',
         warning: '#F4C95D',
-        danger: '#D93A3A',
-        'text-primary': '#182014',
-        'text-secondary': '#66705F',
-        border: '#DDE7D9',
-        'bg-app': '#F7FAF5',
-        'bg-pure': '#FFFFFF',
-        // Finanças. The three ledger hues are semantic (lucro = verde,
-        // gasto = vermelho, investimento = azul) and were validated as a
+
+        // --- themed tokens ---
+        'bg-app': themed('--c-bg-app'),
+        surface: themed('--c-surface'),
+        'surface-2': themed('--c-surface-2'),
+        'bg-pure': themed('--c-surface'),
+        'text-primary': themed('--c-text-primary'),
+        'text-secondary': themed('--c-text-secondary'),
+        border: themed('--c-border'),
+        'sage-green': themed('--c-sage'),
+        /** Dark green text/icons on light surfaces; pale green in the dark theme. */
+        brand: themed('--c-brand'),
+        primary: {
+          DEFAULT: themed('--c-primary'),
+          hover: themed('--c-primary-hover'),
+          fg: themed('--c-primary-fg'),
+        },
+        /** Soft green tint behind icons, selected rows, info boxes. */
+        tint: {
+          DEFAULT: themed('--c-tint'),
+          strong: themed('--c-tint-strong'),
+        },
+        sidebar: themed('--c-sidebar'),
+        overlay: themed('--c-overlay'),
+        success: themed('--c-sage'),
+        'success-light': themed('--c-tint-strong'),
+        'warning-fg': themed('--c-warning-fg'),
+        danger: {
+          DEFAULT: themed('--c-danger'),
+          hover: themed('--c-danger-hover'),
+        },
+        chart: {
+          grid: themed('--c-chart-grid'),
+          baseline: themed('--c-chart-baseline'),
+          leader: themed('--c-chart-leader'),
+        },
+        // Finanças. The three ledger hues are semantic (receita = verde,
+        // despesa = vermelho, investimento = azul) and were validated as a
         // categorical set on a white surface: lightness band, chroma floor,
         // normal-vision ΔE 29.0 and contrast ≥ 3:1 all pass. The verde↔vermelho
         // pair sits at CVD ΔE 7.2 (the 6–8 floor band), so anywhere all three
         // appear together they carry secondary encoding — distinct marker
         // shapes plus direct labels — never colour alone.
         finance: {
-          income: '#008300',
-          'income-soft': '#E2F3E0',
-          expense: '#E34948',
-          'expense-soft': '#FDEAEA',
-          investment: '#2A78D6',
-          'investment-soft': '#E6F0FC',
+          income: themed('--c-fin-income'),
+          'income-soft': themed('--c-fin-income-soft'),
+          expense: themed('--c-fin-expense'),
+          'expense-soft': themed('--c-fin-expense-soft'),
+          investment: themed('--c-fin-investment'),
+          'investment-soft': themed('--c-fin-investment-soft'),
         },
       },
       fontFamily: {
@@ -74,8 +112,8 @@ export default {
         badge: '999px',
       },
       boxShadow: {
-        card: '0 6px 24px rgba(36, 49, 25, 0.06)',
-        elevated: '0 18px 50px rgba(36, 49, 25, 0.12)',
+        card: '0 6px 24px rgb(var(--c-shadow) / 0.06)',
+        elevated: '0 18px 50px rgb(var(--c-shadow) / 0.14)',
       },
       spacing: {
         18: '4.5rem',
@@ -101,12 +139,28 @@ export default {
           '50%': { transform: 'scale(1.15)' },
           '100%': { transform: 'scale(1)' },
         },
+        'fade-up': {
+          '0%': { opacity: '0', transform: 'translateY(6px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'chart-reveal': {
+          '0%': { transform: 'scaleX(0)' },
+          '100%': { transform: 'scaleX(1)' },
+        },
+        'mark-pop': {
+          '0%': { opacity: '0', transform: 'scale(0.4)' },
+          '70%': { opacity: '1', transform: 'scale(1.15)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
+        },
       },
       animation: {
         'toast-in': 'toast-in 220ms cubic-bezier(0.22, 1, 0.36, 1)',
         'modal-in': 'modal-in 200ms cubic-bezier(0.22, 1, 0.36, 1)',
         'backdrop-in': 'backdrop-in 180ms ease',
         'check-pop': 'check-pop 220ms cubic-bezier(0.22, 1, 0.36, 1)',
+        'fade-up': 'fade-up 260ms cubic-bezier(0.22, 1, 0.36, 1) both',
+        'chart-reveal': 'chart-reveal 1100ms cubic-bezier(0.22, 1, 0.36, 1) both',
+        'mark-pop': 'mark-pop 420ms cubic-bezier(0.22, 1, 0.36, 1) both',
       },
     },
   },

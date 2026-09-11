@@ -33,6 +33,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         lastSyncedAtRef.current = next.lastSyncedAt;
         queryClient.invalidateQueries({ queryKey: ['clients'] });
         queryClient.invalidateQueries({ queryKey: ['tasks'] });
+        queryClient.invalidateQueries({ queryKey: ['finance'] });
+        queryClient.invalidateQueries({ queryKey: ['goals'] });
         queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       }
     });

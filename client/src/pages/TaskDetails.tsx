@@ -19,7 +19,7 @@ import { formatCompletedRetention, formatDate, formatDateTime, formatTaskDue, is
 function DetailRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-center gap-3 py-3">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-tea-green/50 text-sage-green">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-tint text-sage-green">
         {icon}
       </span>
       <div className="min-w-0">
@@ -87,7 +87,7 @@ export default function TaskDetails() {
 
       <Card className="mx-auto w-full max-w-2xl">
         <div className="flex flex-col items-center gap-3 text-center">
-          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-tea-green/50">
+          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-tint">
             <PriorityFlag priority={task.priority} size={26} />
           </span>
           <div>
@@ -97,7 +97,7 @@ export default function TaskDetails() {
           <div className="flex flex-wrap items-center justify-center gap-2">
             <StatusBadge status={task.status} />
             <PriorityFlag priority={task.priority} />
-            {overdue && <Badge tone="danger">Vencida</Badge>}
+            {overdue && <Badge tone="danger">Atrasada</Badge>}
             {retention && <Badge tone="warning">{retention}</Badge>}
             <ReminderBell task={task} />
           </div>
@@ -138,7 +138,7 @@ export default function TaskDetails() {
             Marcar como concluída
           </Button>
           <Button leftIcon={<Trash2 size={18} />} variant="danger" onClick={() => setDeleteOpen(true)}>
-            Remover Tarefa
+            Remover tarefa
           </Button>
         </div>
       </Card>

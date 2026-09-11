@@ -17,16 +17,17 @@ function stats(entries: FinanceEntry[]): LedgerStat[] {
     {
       label: 'Recebido este mês',
       value: formatCurrency(totalsForMonth(entries).income),
+      caption: 'Tudo que entrou no mês atual',
     },
     {
       label: 'De clientes concluídos',
       value: formatCurrency(sum(fromClients)),
-      caption: `${fromClients.length} cliente${fromClients.length === 1 ? '' : 's'} · automático`,
+      caption: `${fromClients.length} cliente${fromClients.length === 1 ? '' : 's'} · entra sozinho`,
     },
     {
-      label: 'Lançado manualmente',
+      label: 'Outras entradas',
       value: formatCurrency(sum(manual)),
-      caption: `${manual.length} lançamento${manual.length === 1 ? '' : 's'} · vendas, salários, outros`,
+      caption: `${manual.length} registro${manual.length === 1 ? '' : 's'} · vendas, salários, outros`,
     },
   ];
 }
@@ -35,10 +36,10 @@ export default function Income() {
   return (
     <FinanceLedgerPage
       kind="income"
-      title="Lucros"
-      subtitle="Clientes concluídos entram aqui sozinhos. Lance à mão o que vem de fora — vendas, salários e outras entradas."
+      title="Receitas"
+      subtitle="Todo dinheiro que entra. Clientes concluídos aparecem aqui sozinhos; o resto — vendas, salário, outras entradas — você registra à mão."
       stats={stats}
-      emptyDescription="Conclua um cliente ou lance uma entrada manual para começar a acompanhar seus lucros."
+      emptyDescription="Conclua um cliente ou registre uma entrada para começar a acompanhar suas receitas."
     />
   );
 }

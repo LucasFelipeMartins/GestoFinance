@@ -5,6 +5,8 @@ import { FinanceListParams } from '@/services/financeService';
 import { FinanceEntry } from '@/types';
 import {
   buildMonthlySeries,
+  nextInstallment,
+  pendingForMonth,
   summarizeBills,
   totalsForMonth,
   BillsSummary,
@@ -64,6 +66,24 @@ export function useSetFinancePaid() {
   });
 }
 
+/** "Paguei a parcela deste mês" on a card despesa. */
+export function usePayInstallment() {
+  const invalidate = useInvalidateFinance();
+  return useMutation({
+    mutationFn: (id: string) => financeRepository.payInstallment(id),
+    onSuccess: invalidate,
+  });
+}
+
+/** Reopens the last parcela marked as paid. */
+export function useUndoInstallment() {
+  const invalidate = useInvalidateFinance();
+  return useMutation({
+    mutationFn: (id: string) => financeRepository.undoInstallment(id),
+    onSuccess: invalidate,
+  });
+}
+
 export function useDeleteFinanceEntry() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -90,7 +110,9 @@ export interface FinanceOverview {
   /** Current-month figures, for the panel above the chart. */
   totals: FinanceTotals;
   bills: BillsSummary;
-  /** Unpaid despesas, soonest due date first. */
+  /** Open parcelas still due this month, added up. */
+  pendingThisMonth: number;
+  /** Despesas with something still open, soonest next parcela first. */
   openBills: FinanceEntry[];
 }
 
@@ -104,14 +126,16 @@ export function useFinanceOverview(months = 5) {
 
   const overview = useMemo<FinanceOverview>(() => {
     const entries = query.data ?? [];
+    const dueAt = (entry: FinanceEntry) => nextInstallment(entry)?.dueDate.getTime() ?? Infinity;
     return {
       entries,
       series: buildMonthlySeries(entries, months),
       totals: totalsForMonth(entries),
       bills: summarizeBills(entries),
+      pendingThisMonth: pendingForMonth(entries),
       openBills: entries
-        .filter((entry) => entry.kind === 'expense' && !entry.paid)
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+        .filter((entry) => nextInstallment(entry) !== undefined)
+        .sort((a, b) => dueAt(a) - dueAt(b)),
     };
   }, [query.data, months]);
 

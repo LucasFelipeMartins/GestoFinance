@@ -2,13 +2,144 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Theme tokens. Every value is an RGB triplet so Tailwind can apply opacity
+ * modifiers (bg-surface/60) — see tailwind.config.ts. The `.dark` block only
+ * overrides what changes; anything not listed there is identical in both
+ * themes on purpose (brand greens, priority hues, the warning yellow).
+ *
+ * Badge palettes (status, priority, delivery, finance tints) are consumed
+ * from inline styles as `var(--…)` and are therefore plain CSS colours.
+ */
 @layer base {
+  :root {
+    color-scheme: light;
+
+    --c-bg-app: 247 250 245; /* #F7FAF5 */
+    --c-surface: 255 255 255;
+    --c-surface-2: 255 255 255;
+    --c-text-primary: 24 32 20; /* #182014 */
+    --c-text-secondary: 102 112 95; /* #66705F */
+    --c-border: 221 231 217; /* #DDE7D9 */
+    --c-sage: 98 148 96; /* #629460 */
+    --c-brand: 36 49 25; /* #243119 */
+    --c-primary: 36 49 25;
+    --c-primary-hover: 49 68 31; /* #31441F */
+    --c-primary-fg: 255 255 255;
+    --c-tint: 228 245 226; /* #E4F5E2 */
+    --c-tint-strong: 201 242 199; /* #C9F2C7 */
+    --c-sidebar: 36 49 25;
+    --c-overlay: 36 49 25;
+    --c-shadow: 36 49 25;
+    --c-danger: 217 58 58; /* #D93A3A */
+    --c-danger-hover: 194 49 49; /* #C23131 */
+    --c-warning-fg: 122 91 0; /* #7A5B00 */
+    --c-chart-grid: 234 240 230; /* #EAF0E6 */
+    --c-chart-baseline: 214 226 209; /* #D6E2D1 */
+    --c-chart-leader: 196 210 190; /* #C4D2BE */
+
+    --c-fin-income: 0 131 0; /* #008300 */
+    --c-fin-income-soft: 226 243 224; /* #E2F3E0 */
+    --c-fin-expense: 227 73 72; /* #E34948 */
+    --c-fin-expense-soft: 253 234 234; /* #FDEAEA */
+    --c-fin-investment: 42 120 214; /* #2A78D6 */
+    --c-fin-investment-soft: 230 240 252; /* #E6F0FC */
+
+    /* Badges (inline styles) */
+    --status-pending-fg: #8a6d1d;
+    --status-pending-bg: #fef3d6;
+    --status-progress-fg: #1e6e8c;
+    --status-progress-bg: #dff1f7;
+    --status-done-fg: #2f6b34;
+    --status-done-bg: #dcf3da;
+
+    --prio-critical-bg: #fdecec;
+    --prio-high-bg: #fff2e2;
+    --prio-medium-bg: #fef7da;
+    --prio-low-bg: #f1ecfa;
+    --prio-very-low-bg: #e7f2fc;
+
+    --delivery-overdue-fg: #d93a3a;
+    --delivery-overdue-bg: #fdecec;
+    --delivery-today-fg: #b26b00;
+    --delivery-today-bg: #fff2e2;
+    --delivery-soon-fg: #8a6d1d;
+    --delivery-soon-bg: #fef7da;
+    --delivery-upcoming-fg: #2f6b34;
+    --delivery-upcoming-bg: #dcf3da;
+    --delivery-done-fg: #66705f;
+    --delivery-done-bg: #eff2ed;
+
+    --goal-done: #2f6b34;
+  }
+
+  .dark {
+    color-scheme: dark;
+
+    --c-bg-app: 14 19 15; /* #0E130F */
+    --c-surface: 24 32 26; /* #18201A */
+    --c-surface-2: 31 41 33; /* #1F2921 */
+    --c-text-primary: 234 240 230; /* #EAF0E6 */
+    --c-text-secondary: 156 170 150; /* #9CAA96 */
+    --c-border: 45 58 46; /* #2D3A2E */
+    --c-sage: 134 188 130; /* #86BC82 */
+    --c-brand: 201 242 199; /* #C9F2C7 */
+    --c-primary: 134 188 130;
+    --c-primary-hover: 156 206 152; /* #9CCE98 */
+    --c-primary-fg: 15 24 12; /* #0F180C */
+    --c-tint: 30 46 31; /* #1E2E1F */
+    --c-tint-strong: 42 66 44; /* #2A422C */
+    --c-sidebar: 17 24 18; /* #111812 */
+    --c-overlay: 0 0 0;
+    --c-shadow: 0 0 0;
+    --c-danger: 240 106 104; /* #F06A68 */
+    --c-danger-hover: 226 84 82;
+    --c-warning-fg: 244 201 93;
+    --c-chart-grid: 38 50 39; /* #263227 */
+    --c-chart-baseline: 54 70 55;
+    --c-chart-leader: 74 92 74;
+
+    --c-fin-income: 82 196 82; /* #52C452 */
+    --c-fin-income-soft: 22 46 24; /* #162E18 */
+    --c-fin-expense: 242 108 106; /* #F26C6A */
+    --c-fin-expense-soft: 58 30 31; /* #3A1E1F */
+    --c-fin-investment: 100 164 242; /* #64A4F2 */
+    --c-fin-investment-soft: 26 40 64; /* #1A2840 */
+
+    --status-pending-fg: #f0cf6a;
+    --status-pending-bg: #3d3216;
+    --status-progress-fg: #7fcbe8;
+    --status-progress-bg: #17303a;
+    --status-done-fg: #8fd48c;
+    --status-done-bg: #1b3a1e;
+
+    --prio-critical-bg: #3f1f1f;
+    --prio-high-bg: #402c14;
+    --prio-medium-bg: #3d3516;
+    --prio-low-bg: #2c2440;
+    --prio-very-low-bg: #17293d;
+
+    --delivery-overdue-fg: #f27a78;
+    --delivery-overdue-bg: #3f1f1f;
+    --delivery-today-fg: #f2b45a;
+    --delivery-today-bg: #402c14;
+    --delivery-soon-fg: #f0cf6a;
+    --delivery-soon-bg: #3d3516;
+    --delivery-upcoming-fg: #8fd48c;
+    --delivery-upcoming-bg: #1b3a1e;
+    --delivery-done-fg: #9caa96;
+    --delivery-done-bg: #253027;
+
+    --goal-done: #8fd48c;
+  }
+
   html {
     -webkit-tap-highlight-color: transparent;
   }
 
   body {
     @apply bg-bg-app text-text-primary font-sans antialiased;
+    transition: background-color 200ms ease, color 200ms ease;
   }
 
   ::selection {
@@ -16,9 +147,27 @@
   }
 
   :focus-visible {
-    outline: 2px solid #629460;
+    outline: 2px solid rgb(var(--c-sage));
     outline-offset: 2px;
     border-radius: 4px;
+  }
+
+  /* Native date/time pickers: the calendar icon is a black glyph by default
+     and vanishes on dark surfaces. color-scheme above handles the picker
+     popup; this keeps the inline icon visible. */
+  .dark input[type='date']::-webkit-calendar-picker-indicator,
+  .dark input[type='time']::-webkit-calendar-picker-indicator {
+    filter: invert(0.85);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 

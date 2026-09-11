@@ -23,7 +23,7 @@ export function TaskCardMobile({ task, onToggleComplete, onEdit, onDelete }: Tas
   const retention = formatCompletedRetention(task);
 
   return (
-    <Card className="flex flex-col gap-2.5 cursor-pointer" onClick={() => navigate(`/tarefas/${task.id}`)}>
+    <Card padding="sm" className="flex cursor-pointer flex-col gap-2.5" onClick={() => navigate(`/tarefas/${task.id}`)}>
       <div className="flex items-start gap-3">
         <PriorityFlag priority={task.priority} size={18} />
         <div className="min-w-0 flex-1">
@@ -47,7 +47,7 @@ export function TaskCardMobile({ task, onToggleComplete, onEdit, onDelete }: Tas
           <span className="text-caption text-text-secondary">Concluída · {retention}</span>
         ) : task.dueDate ? (
           overdue ? (
-            <Badge tone="danger">Vencida</Badge>
+            <Badge tone="danger">Atrasada</Badge>
           ) : (
             <span className="text-caption text-text-secondary">{formatTaskDue(task.dueDate)}</span>
           )

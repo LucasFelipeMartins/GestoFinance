@@ -7,7 +7,7 @@ export function ProtectedRoute() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-bg-app">
+      <div className="flex min-h-[100dvh] items-center justify-center bg-bg-app">
         <Loader2 className="animate-spin text-sage-green" size={32} />
       </div>
     );
@@ -25,7 +25,7 @@ export function GuestRoute() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-bg-app">
+      <div className="flex min-h-[100dvh] items-center justify-center bg-bg-app">
         <Loader2 className="animate-spin text-sage-green" size={32} />
       </div>
     );

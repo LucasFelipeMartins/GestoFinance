@@ -16,7 +16,7 @@ export function RecentClients({ clients }: { clients: Client[] }) {
       <div className="flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-h3 text-text-primary">
           <Users size={19} className="text-sage-green" />
-          Clientes Recentes
+          Clientes recentes
         </h3>
         <button
           type="button"
@@ -37,7 +37,7 @@ export function RecentClients({ clients }: { clients: Client[] }) {
               <button
                 type="button"
                 onClick={() => navigate(`/clientes/${client.id}`)}
-                className="flex w-full items-center gap-3 py-3 text-left transition-colors hover:bg-bg-app/60 rounded-md px-1 -mx-1"
+                className="-mx-2 flex w-[calc(100%+16px)] items-center gap-3 rounded-input px-2 py-3 text-left transition-colors hover:bg-tint"
               >
                 <Avatar
                   name={client.name}

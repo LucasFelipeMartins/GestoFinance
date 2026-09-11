@@ -57,7 +57,7 @@ export function ClientFormModal({ open, onOpenChange, client }: ClientFormModalP
     <Modal
       open={open}
       onOpenChange={onOpenChange}
-      title={isEditing ? 'Editar Cliente' : 'Adicionar Cliente'}
+      title={isEditing ? 'Editar cliente' : 'Adicionar cliente'}
       preventOutsideClose={isSubmitting}
     >
       <ClientForm
@@ -67,7 +67,7 @@ export function ClientFormModal({ open, onOpenChange, client }: ClientFormModalP
         onSubmit={handleSubmit}
         onCancel={() => onOpenChange(false)}
         isSubmitting={isSubmitting}
-        submitLabel={isEditing ? 'Salvar Alterações' : 'Salvar Cliente'}
+        submitLabel={isEditing ? 'Salvar alterações' : 'Salvar cliente'}
       />
     </Modal>
   );

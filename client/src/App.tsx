@@ -1,12 +1,15 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider, MutationCache } from '@tanstack/react-query';
 import { AuthProvider } from '@/context/AuthContext';
 import { SyncProvider } from '@/context/SyncContext';
 import { ToastProvider } from '@/context/ToastContext';
+import { ThemeProvider } from '@/context/ThemeContext';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ProtectedRoute, GuestRoute } from '@/components/layout/ProtectedRoute';
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
+import ForgotPassword from '@/pages/ForgotPassword';
+import ResetPassword from '@/pages/ResetPassword';
 import Home from '@/pages/Home';
 import Clients from '@/pages/Clients';
 import ClientDetails from '@/pages/ClientDetails';
@@ -52,37 +55,46 @@ const queryClient = new QueryClient({
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AuthProvider>
-          <SyncProvider>
-            <ToastProvider>
-              <Routes>
-                <Route element={<GuestRoute />}>
-                  <Route path="/entrar" element={<Login />} />
-                  <Route path="/criar-conta" element={<Register />} />
-                </Route>
-
-                <Route element={<ProtectedRoute />}>
-                  <Route element={<AppLayout />}>
-                    <Route path="/" element={<Home />} />
-                    <Route path="/clientes" element={<Clients />} />
-                    <Route path="/clientes/:id" element={<ClientDetails />} />
-                    <Route path="/tarefas" element={<Tasks />} />
-                    <Route path="/tarefas/:id" element={<TaskDetails />} />
-                    <Route path="/lucros" element={<Income />} />
-                    <Route path="/despesas" element={<Expenses />} />
-                    <Route path="/investimentos" element={<Investments />} />
-                    <Route path="/metas" element={<Goals />} />
-                    <Route path="/configuracoes" element={<Settings />} />
+      <ThemeProvider>
+        <BrowserRouter>
+          <AuthProvider>
+            <SyncProvider>
+              <ToastProvider>
+                <Routes>
+                  <Route element={<GuestRoute />}>
+                    <Route path="/entrar" element={<Login />} />
+                    <Route path="/criar-conta" element={<Register />} />
+                    <Route path="/esqueci-senha" element={<ForgotPassword />} />
                   </Route>
-                </Route>
 
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </ToastProvider>
-          </SyncProvider>
-        </AuthProvider>
-      </BrowserRouter>
+                  {/* Reachable signed in or out: the link in the e-mail must
+                      work whatever the state of this browser's session. */}
+                  <Route path="/redefinir-senha" element={<ResetPassword />} />
+
+                  <Route element={<ProtectedRoute />}>
+                    <Route element={<AppLayout />}>
+                      <Route path="/" element={<Home />} />
+                      <Route path="/clientes" element={<Clients />} />
+                      <Route path="/clientes/:id" element={<ClientDetails />} />
+                      <Route path="/tarefas" element={<Tasks />} />
+                      <Route path="/tarefas/:id" element={<TaskDetails />} />
+                      <Route path="/receitas" element={<Income />} />
+                      {/* The page used to be called "Lucros" — keep old links alive. */}
+                      <Route path="/lucros" element={<Navigate to="/receitas" replace />} />
+                      <Route path="/despesas" element={<Expenses />} />
+                      <Route path="/investimentos" element={<Investments />} />
+                      <Route path="/metas" element={<Goals />} />
+                      <Route path="/configuracoes" element={<Settings />} />
+                    </Route>
+                  </Route>
+
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </ToastProvider>
+            </SyncProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

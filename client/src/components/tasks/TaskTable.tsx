@@ -29,7 +29,7 @@ export function TaskTable({ tasks, onToggleComplete, onEdit, onDelete }: TaskTab
           <Th>Cliente</Th>
           <Th>Prazo</Th>
           <Th>Prioridade</Th>
-          <Th>Status</Th>
+          <Th>Situação</Th>
           <Th className="text-right">Ações</Th>
         </Tr>
       </Thead>
@@ -65,7 +65,7 @@ export function TaskTable({ tasks, onToggleComplete, onEdit, onDelete }: TaskTab
               <Td>
                 {task.dueDate ? (
                   overdue ? (
-                    <Badge tone="danger">Vencida</Badge>
+                    <Badge tone="danger">Atrasada</Badge>
                   ) : (
                     <span className="whitespace-nowrap">{formatTaskDue(task.dueDate)}</span>
                   )

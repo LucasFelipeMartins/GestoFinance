@@ -1,6 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
 import { User } from '@/types';
-import { authService, LoginPayload, RegisterPayload } from '@/services/authService';
+import {
+  authService,
+  LoginPayload,
+  MailSentResponse,
+  RegisterPayload,
+  RequestRegisterCodePayload,
+} from '@/services/authService';
 import { isNetworkError } from '@/services/api';
 import { setToken, clearToken } from '@/utils/tokenStorage';
 import { db, clearLocalData } from '@/db';
@@ -14,6 +20,9 @@ interface AuthContextValue {
    * i.e. we couldn't reach the server to confirm it's still valid. */
   isOfflineSession: boolean;
   login: (payload: LoginPayload) => Promise<void>;
+  /** Step 1 of sign-up: e-mails the confirmation code. */
+  requestRegisterCode: (payload: RequestRegisterCodePayload) => Promise<MailSentResponse>;
+  /** Step 2: creates the account once the code checks out. */
   register: (payload: RegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -80,6 +89,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(loggedUser);
   }, []);
 
+  const requestRegisterCode = useCallback(
+    (payload: RequestRegisterCodePayload) => authService.requestRegisterCode(payload),
+    []
+  );
+
   const register = useCallback(async (payload: RegisterPayload) => {
     const { user: newUser, token } = await authService.register(payload);
     if (token) await setToken(token);
@@ -103,8 +117,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, isLoading, isOfflineSession, login, register, logout }),
-    [user, isLoading, isOfflineSession, login, register, logout]
+    () => ({ user, isLoading, isOfflineSession, login, requestRegisterCode, register, logout }),
+    [user, isLoading, isOfflineSession, login, requestRegisterCode, register, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,26 +1,55 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Handshake, Mail, Lock, User } from 'lucide-react';
+import { Mail, User, MailCheck, ArrowLeft, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { getApiErrorMessage } from '@/services/api';
+import { useToast } from '@/context/ToastContext';
+import { getApiErrorMessage, getApiFieldErrors } from '@/services/api';
 import { Input } from '@/components/ui/Input';
+import { PasswordInput } from '@/components/ui/PasswordInput';
+import { CodeInput } from '@/components/ui/CodeInput';
 import { Button } from '@/components/ui/Button';
+import { AuthLayout, AuthError } from '@/components/layout/AuthLayout';
 
-const schema = z.object({
-  name: z.string().trim().min(2, 'O nome deve ter ao menos 2 caracteres.'),
-  email: z.string().trim().min(1, 'Informe seu e-mail.').email('Informe um e-mail válido.'),
-  password: z.string().min(6, 'A senha deve ter ao menos 6 caracteres.'),
-});
+const schema = z
+  .object({
+    name: z.string().trim().min(2, 'O nome deve ter ao menos 2 caracteres.'),
+    email: z.string().trim().min(1, 'Informe seu e-mail.').email('Informe um e-mail válido.'),
+    password: z.string().min(6, 'A senha deve ter ao menos 6 caracteres.'),
+    confirmPassword: z.string().min(1, 'Repita a senha.'),
+  })
+  .refine((values) => values.password === values.confirmPassword, {
+    path: ['confirmPassword'],
+    message: 'As senhas não são iguais.',
+  });
 
 type FormValues = z.infer<typeof schema>;
 
+const RESEND_SECONDS = 60;
+
+/**
+ * Sign-up in two steps. The account only exists after the e-mailed code is
+ * typed back, so nobody can register an address that isn't theirs — and a
+ * typo in the e-mail is caught before it locks someone out of "esqueci
+ * minha senha" later.
+ */
 export default function Register() {
-  const { register: registerUser } = useAuth();
+  const { requestRegisterCode, register: registerUser } = useAuth();
+  const toast = useToast();
   const navigate = useNavigate();
+
+  const [step, setStep] = useState<'details' | 'code'>('details');
+  const [details, setDetails] = useState<FormValues>();
+  const [code, setCode] = useState('');
+  const [codeError, setCodeError] = useState<string>();
   const [serverError, setServerError] = useState<string>();
+  const [devCode, setDevCode] = useState<string>();
+  const [expiresIn, setExpiresIn] = useState(15);
+  const [resendIn, setResendIn] = useState(0);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [isResending, setIsResending] = useState(false);
 
   const {
     register,
@@ -28,80 +57,199 @@ export default function Register() {
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
-  const onSubmit = async (values: FormValues) => {
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const timer = setInterval(() => setResendIn((current) => Math.max(0, current - 1)), 1000);
+    return () => clearInterval(timer);
+  }, [resendIn]);
+
+  const sendCode = async (values: FormValues) => {
+    const response = await requestRegisterCode({ name: values.name, email: values.email });
+    setExpiresIn(response.expiresInMinutes);
+    setDevCode(response.devCode);
+    setResendIn(RESEND_SECONDS);
+  };
+
+  const onSubmitDetails = async (values: FormValues) => {
     setServerError(undefined);
     try {
-      await registerUser(values);
-      navigate('/', { replace: true });
+      await sendCode(values);
+      setDetails(values);
+      setCode('');
+      setCodeError(undefined);
+      setStep('code');
     } catch (error) {
-      setServerError(getApiErrorMessage(error, 'Não foi possível criar sua conta.'));
+      setServerError(getApiErrorMessage(error, 'Não foi possível enviar o código.'));
     }
   };
 
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-bg-app px-4 py-10">
-      <div className="w-full max-w-md">
-        <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <span className="flex h-14 w-14 items-center justify-center rounded-[16px] bg-evergreen">
-            <Handshake size={28} className="text-tea-green" />
-          </span>
-          <div>
-            <h1 className="text-h1-mobile text-text-primary">GestorPro</h1>
-            <p className="text-body text-text-secondary">Clientes &amp; Tarefas</p>
+  const verify = async (value: string) => {
+    if (!details || value.length !== 6 || isVerifying) return;
+    setIsVerifying(true);
+    setCodeError(undefined);
+    setServerError(undefined);
+    try {
+      await registerUser({ name: details.name, email: details.email, password: details.password, code: value });
+      toast.success('Conta criada! Bem-vindo ao GestorPro.');
+      navigate('/', { replace: true });
+    } catch (error) {
+      const fields = getApiFieldErrors(error);
+      if (fields?.code) {
+        setCodeError(fields.code);
+      } else {
+        setServerError(getApiErrorMessage(error, 'Não foi possível criar sua conta.'));
+      }
+      setCode('');
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const resend = async () => {
+    if (!details || resendIn > 0) return;
+    setIsResending(true);
+    setServerError(undefined);
+    setCodeError(undefined);
+    try {
+      await sendCode(details);
+      toast.success('Enviamos um novo código.');
+    } catch (error) {
+      setServerError(getApiErrorMessage(error, 'Não foi possível reenviar o código.'));
+    } finally {
+      setIsResending(false);
+    }
+  };
+
+  if (step === 'code' && details) {
+    return (
+      <AuthLayout
+        title="Confirme seu e-mail"
+        description={
+          <>
+            Enviamos um código de 6 números para <strong className="text-text-primary">{details.email}</strong>.
+            Digite-o abaixo para concluir. Ele vale por {expiresIn} minutos.
+          </>
+        }
+        footer={
+          <button
+            type="button"
+            onClick={() => {
+              setStep('details');
+              setServerError(undefined);
+            }}
+            className="inline-flex items-center gap-1.5 font-semibold text-sage-green hover:underline"
+          >
+            <ArrowLeft size={15} />
+            Corrigir e-mail ou dados
+          </button>
+        }
+      >
+        <div className="flex flex-col gap-5">
+          <div className="flex items-center gap-3 rounded-input bg-tint px-4 py-3 text-body text-text-primary">
+            <MailCheck size={20} className="shrink-0 text-sage-green" />
+            <span>
+              Não chegou? Veja a caixa de <strong>spam</strong> ou <strong>promoções</strong>.
+            </span>
           </div>
+
+          <CodeInput
+            value={code}
+            onChange={(value) => {
+              setCode(value);
+              if (codeError) setCodeError(undefined);
+            }}
+            onComplete={verify}
+            error={codeError}
+            disabled={isVerifying}
+            autoFocus
+          />
+
+          {devCode && (
+            <p className="rounded-input border border-dashed border-border px-4 py-2.5 text-caption text-text-secondary">
+              Ambiente de desenvolvimento (sem e-mail configurado) — seu código é{' '}
+              <strong className="tabular-nums text-text-primary">{devCode}</strong>.
+            </p>
+          )}
+
+          <AuthError message={serverError} />
+
+          <Button
+            type="button"
+            onClick={() => verify(code)}
+            isLoading={isVerifying}
+            disabled={code.length !== 6}
+            className="w-full"
+          >
+            Criar conta
+          </Button>
+
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={resend}
+            isLoading={isResending}
+            disabled={resendIn > 0}
+            leftIcon={<RefreshCw size={16} />}
+            className="w-full"
+          >
+            {resendIn > 0 ? `Reenviar código em ${resendIn}s` : 'Reenviar código'}
+          </Button>
         </div>
+      </AuthLayout>
+    );
+  }
 
-        <div className="rounded-card border border-border bg-white p-6 shadow-card sm:p-8">
-          <h2 className="text-h2 text-text-primary">Criar sua conta</h2>
-          <p className="mt-1 text-body text-text-secondary">
-            Seus clientes e tarefas ficam vinculados somente à sua conta.
-          </p>
-
-          <form onSubmit={handleSubmit(onSubmit)} className="mt-6 flex flex-col gap-4" noValidate>
-            <Input
-              label="Nome"
-              autoComplete="name"
-              leftIcon={<User size={18} />}
-              error={errors.name?.message}
-              {...register('name')}
-            />
-            <Input
-              label="E-mail"
-              type="email"
-              autoComplete="email"
-              leftIcon={<Mail size={18} />}
-              error={errors.email?.message}
-              {...register('email')}
-            />
-            <Input
-              label="Senha"
-              type="password"
-              autoComplete="new-password"
-              leftIcon={<Lock size={18} />}
-              hint="Mínimo de 6 caracteres."
-              error={errors.password?.message}
-              {...register('password')}
-            />
-
-            {serverError && (
-              <p role="alert" className="rounded-input bg-danger/10 px-4 py-3 text-body text-danger">
-                {serverError}
-              </p>
-            )}
-
-            <Button type="submit" isLoading={isSubmitting} className="mt-2 w-full">
-              Criar conta
-            </Button>
-          </form>
-        </div>
-
-        <p className="mt-6 text-center text-body text-text-secondary">
+  return (
+    <AuthLayout
+      title="Criar sua conta"
+      description="Seus clientes, tarefas e finanças ficam vinculados somente à sua conta."
+      footer={
+        <>
           Já tem uma conta?{' '}
           <Link to="/entrar" className="font-semibold text-sage-green hover:underline">
             Entrar
           </Link>
-        </p>
-      </div>
-    </div>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit(onSubmitDetails)} className="flex flex-col gap-4" noValidate>
+        <Input
+          label="Nome"
+          autoComplete="name"
+          leftIcon={<User size={18} />}
+          error={errors.name?.message}
+          {...register('name')}
+        />
+        <Input
+          label="E-mail"
+          type="email"
+          autoComplete="email"
+          inputMode="email"
+          leftIcon={<Mail size={18} />}
+          hint="Você vai receber um código neste e-mail para confirmar a conta."
+          error={errors.email?.message}
+          {...register('email')}
+        />
+        <PasswordInput
+          label="Senha"
+          autoComplete="new-password"
+          hint="Mínimo de 6 caracteres."
+          error={errors.password?.message}
+          {...register('password')}
+        />
+        <PasswordInput
+          label="Confirmar senha"
+          autoComplete="new-password"
+          error={errors.confirmPassword?.message}
+          {...register('confirmPassword')}
+        />
+
+        <AuthError message={serverError} />
+
+        <Button type="submit" isLoading={isSubmitting} className="mt-2 w-full">
+          Continuar
+        </Button>
+      </form>
+    </AuthLayout>
   );
 }

@@ -7,7 +7,9 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { useLogoutConfirm } from '@/hooks/useLogoutConfirm';
 import { Avatar } from '@/components/ui/Avatar';
+import { POPOVER_CLASS } from '@/components/ui/Select';
 import { SyncIndicator } from './SyncIndicator';
+import { ThemeToggle } from './ThemeToggle';
 
 export function Header() {
   const { user } = useAuth();
@@ -20,27 +22,27 @@ export function Header() {
   const firstName = user?.name?.split(' ')[0] ?? '';
 
   return (
-    <header className="sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-border bg-bg-app/80 px-4 py-4 backdrop-blur-sm sm:px-6 lg:px-8 lg:py-6">
+    <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border bg-bg-app/85 px-4 py-3 backdrop-blur-sm sm:gap-4 sm:px-6 sm:py-4 lg:px-8 lg:py-5">
       <div className="min-w-0">
         <h1 className="truncate text-h1-mobile text-text-primary lg:text-h1">Olá, {firstName}!</h1>
-        <p className="hidden text-body text-text-secondary sm:block">
-          Clientes, tarefas e finanças em um só lugar.
-        </p>
+        <p className="hidden text-body text-text-secondary sm:block">Clientes, tarefas e finanças em um só lugar.</p>
         <p className="text-caption text-text-secondary sm:hidden">{todayCapitalized}</p>
       </div>
 
-      <div className="flex shrink-0 items-center gap-2 sm:gap-4">
-        <span className="hidden text-body-strong text-text-secondary lg:block">{todayCapitalized}</span>
+      <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+        <span className="hidden text-body-strong text-text-secondary xl:block">{todayCapitalized}</span>
 
         <span className="hidden sm:block">
           <SyncIndicator variant="header" />
         </span>
 
+        <ThemeToggle />
+
         <button
           type="button"
           onClick={() => toast.info('Nenhuma notificação nova.')}
           aria-label="Notificações"
-          className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white text-text-secondary shadow-card transition-colors hover:text-evergreen"
+          className="relative flex h-10 w-10 items-center justify-center rounded-full bg-surface text-text-secondary shadow-card transition-colors hover:text-brand"
         >
           <Bell size={19} />
         </button>
@@ -49,25 +51,21 @@ export function Header() {
           <DropdownMenu.Trigger asChild>
             <button
               type="button"
-              className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 transition-colors hover:bg-white/70"
+              className="flex h-10 items-center gap-2 rounded-full py-1 pl-1 pr-1 transition-colors hover:bg-surface sm:pr-2"
               aria-label="Menu do usuário"
             >
               <Avatar name={user?.name ?? ''} src={user?.avatarUrl} size="sm" />
-              <span className="hidden flex-col items-start leading-tight sm:flex">
-                <span className="text-body-strong text-text-primary">{user?.name}</span>
+              <span className="hidden max-w-[160px] truncate text-body-strong text-text-primary sm:block">
+                {user?.name}
               </span>
               <ChevronDown size={16} className="hidden text-text-secondary sm:block" />
             </button>
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
-            <DropdownMenu.Content
-              align="end"
-              sideOffset={8}
-              className="z-40 min-w-[190px] rounded-input border border-border bg-white p-1.5 shadow-elevated"
-            >
+            <DropdownMenu.Content align="end" sideOffset={8} className={`z-40 min-w-[200px] p-1.5 ${POPOVER_CLASS}`}>
               <DropdownMenu.Item
                 onSelect={() => navigate('/configuracoes')}
-                className="flex cursor-pointer items-center gap-2.5 rounded-md px-3 py-2.5 text-body text-text-primary outline-none data-[highlighted]:bg-bg-app"
+                className="flex cursor-pointer items-center gap-2.5 rounded-md px-3 py-2.5 text-body text-text-primary outline-none data-[highlighted]:bg-tint"
               >
                 <Settings size={17} />
                 Configurações

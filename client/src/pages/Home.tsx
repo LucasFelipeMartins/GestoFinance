@@ -27,7 +27,7 @@ export default function Home() {
   if (isLoading || isLoadingFinance || !data) {
     return (
       <PageContainer>
-        <PageHeader title="Resumo" subtitle="Visão geral da operação e das finanças" />
+        <PageHeader title="Resumo" subtitle="Seu dinheiro, seus clientes e suas tarefas em um só lugar" />
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <SkeletonCard key={i} />
@@ -44,7 +44,7 @@ export default function Home() {
       <PageHeader
         eyebrow={currentMonth}
         title="Resumo"
-        subtitle="Visão geral da operação e das finanças"
+        subtitle="Seu dinheiro, seus clientes e suas tarefas em um só lugar"
       />
 
       <FinanceKpis totals={overview.totals} periodLabel={currentMonth} />
@@ -53,7 +53,7 @@ export default function Home() {
         <Card>
           <FinanceChart series={overview.series} />
         </Card>
-        <BillsPanel bills={overview.openBills} summary={overview.bills} />
+        <BillsPanel bills={overview.openBills} summary={overview.bills} pendingThisMonth={overview.pendingThisMonth} />
       </div>
 
       <GoalsPanel />

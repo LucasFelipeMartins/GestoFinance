@@ -48,7 +48,7 @@ export function TaskFormModal({ open, onOpenChange, task, lockedClientId }: Task
     <Modal
       open={open}
       onOpenChange={onOpenChange}
-      title={isEditing ? 'Editar Tarefa' : 'Adicionar Tarefa'}
+      title={isEditing ? 'Editar tarefa' : 'Adicionar tarefa'}
       preventOutsideClose={isSubmitting}
     >
       <TaskForm
@@ -67,7 +67,7 @@ export function TaskFormModal({ open, onOpenChange, task, lockedClientId }: Task
         onSubmit={handleSubmit}
         onCancel={() => onOpenChange(false)}
         isSubmitting={isSubmitting}
-        submitLabel={isEditing ? 'Salvar Alterações' : 'Salvar Tarefa'}
+        submitLabel={isEditing ? 'Salvar alterações' : 'Salvar tarefa'}
       />
     </Modal>
   );

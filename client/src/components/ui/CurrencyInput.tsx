@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { FIELD_BORDER_CLASS, FIELD_CLASS, FIELD_ERROR_BORDER_CLASS, FieldLabel, FieldMessage } from './Input';
 
 interface CurrencyInputProps {
   label?: string;
@@ -10,6 +11,7 @@ interface CurrencyInputProps {
   placeholder?: string;
   disabled?: boolean;
   name?: string;
+  autoFocus?: boolean;
 }
 
 function formatFromCents(cents: number): string {
@@ -36,6 +38,7 @@ export function CurrencyInput({
   placeholder = '0,00',
   disabled,
   name,
+  autoFocus,
 }: CurrencyInputProps) {
   const inputId = useId();
   const errorId = `${inputId}-error`;
@@ -50,11 +53,7 @@ export function CurrencyInput({
 
   return (
     <div className="flex w-full flex-col gap-1.5">
-      {label && (
-        <label htmlFor={inputId} className="text-body-strong text-text-primary">
-          {label}
-        </label>
-      )}
+      {label && <FieldLabel htmlFor={inputId}>{label}</FieldLabel>}
       <div className="relative">
         <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-body text-text-secondary">
           R$
@@ -65,26 +64,17 @@ export function CurrencyInput({
           type="text"
           inputMode="numeric"
           autoComplete="off"
+          autoFocus={autoFocus}
           value={display}
           disabled={disabled}
           placeholder={placeholder}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? errorId : undefined}
           onChange={(event) => handleChange(event.target.value)}
-          className={`h-11 w-full rounded-input border bg-white pl-11 pr-4 text-body tabular-nums text-text-primary
-            placeholder:text-text-secondary/70 transition-colors duration-200
-            focus:border-sage-green focus:outline-none
-            disabled:cursor-not-allowed disabled:bg-bg-app disabled:text-text-secondary
-            ${error ? 'border-danger' : 'border-border hover:border-sage-green/60'}`}
+          className={`${FIELD_CLASS} pl-11 tabular-nums ${error ? FIELD_ERROR_BORDER_CLASS : FIELD_BORDER_CLASS}`}
         />
       </div>
-      {error ? (
-        <p id={errorId} className="text-caption text-danger">
-          {error}
-        </p>
-      ) : hint ? (
-        <p className="text-caption text-text-secondary">{hint}</p>
-      ) : null}
+      <FieldMessage id={errorId} error={error} hint={hint} />
     </div>
   );
 }

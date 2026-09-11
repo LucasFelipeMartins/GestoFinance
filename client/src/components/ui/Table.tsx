@@ -1,8 +1,9 @@
 import { HTMLAttributes, ReactNode, TdHTMLAttributes, ThHTMLAttributes } from 'react';
+import { CARD_CLASS } from './Card';
 
 export function Table({ children }: { children: ReactNode }) {
   return (
-    <div className="overflow-x-auto rounded-card border border-border bg-white shadow-card">
+    <div className={`${CARD_CLASS} overflow-x-auto`}>
       <table className="w-full min-w-[720px] border-collapse text-left">{children}</table>
     </div>
   );

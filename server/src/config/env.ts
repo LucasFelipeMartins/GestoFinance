@@ -10,6 +10,11 @@ function required(name: string, fallback?: string): string {
   return value;
 }
 
+function optional(name: string): string | undefined {
+  const value = process.env[name]?.trim();
+  return value ? value : undefined;
+}
+
 export const env = {
   port: Number(process.env.PORT ?? 4000),
   nodeEnv: process.env.NODE_ENV ?? 'development',
@@ -22,6 +27,13 @@ export const env = {
     .split(',')
     .map((origin) => origin.trim())
     .concat(['https://localhost', 'capacitor://localhost', 'http://localhost']),
+  /**
+   * Public URL of the web app, used to build the links inside e-mails
+   * (password reset). Optional: when unset the URL is derived from the
+   * request that asked for the e-mail, which on Vercel is the same
+   * deployment that serves the SPA — preview URLs included.
+   */
+  appUrl: optional('APP_URL')?.replace(/\/+$/, ''),
   mongoUrl: required('MONGO_URL'),
   jwtSecret: required('JWT_SECRET'),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
@@ -29,4 +41,35 @@ export const env = {
   // When set (production on Vercel), avatars upload to Vercel Blob instead of
   // local disk, which doesn't persist across serverless invocations.
   blobReadWriteToken: process.env.BLOB_READ_WRITE_TOKEN,
+
+  /**
+   * Outgoing e-mail (verification codes, password reset). Two providers are
+   * supported; the first one configured wins:
+   *   1. Resend — just RESEND_API_KEY (HTTP API, works anywhere incl. Vercel).
+   *   2. Any SMTP server — SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS
+   *      (Gmail with an app password, Brevo, Mailgun...).
+   * With neither set, development logs the message to the console instead of
+   * sending it, so the flow can be exercised locally without an account.
+   */
+  mail: {
+    from: optional('MAIL_FROM'),
+    resendApiKey: optional('RESEND_API_KEY'),
+    smtp: {
+      host: optional('SMTP_HOST'),
+      port: Number(process.env.SMTP_PORT ?? 587),
+      user: optional('SMTP_USER'),
+      pass: optional('SMTP_PASS'),
+      // Port 465 is implicit TLS; 587/25 negotiate STARTTLS instead.
+      secure: (process.env.SMTP_SECURE ?? '').toLowerCase() === 'true' || process.env.SMTP_PORT === '465',
+    },
+  },
 };
+
+export type MailProvider = 'resend' | 'smtp' | 'console' | 'none';
+
+/** Which channel sendMail will actually use with the current env. */
+export function mailProvider(): MailProvider {
+  if (env.mail.resendApiKey) return 'resend';
+  if (env.mail.smtp.host && env.mail.smtp.user && env.mail.smtp.pass) return 'smtp';
+  return env.isProduction ? 'none' : 'console';
+}

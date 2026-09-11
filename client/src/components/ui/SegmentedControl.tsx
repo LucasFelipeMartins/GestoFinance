@@ -12,7 +12,7 @@ interface SegmentedControlProps<T extends string> {
   value: T;
   onChange: (value: T) => void;
   disabled?: boolean;
-  /** Accent for the selected segment. Defaults to the app's evergreen. */
+  /** Accent for the selected segment. Defaults to the app's brand green. */
   activeColor?: string;
   activeBackground?: string;
 }
@@ -20,7 +20,9 @@ interface SegmentedControlProps<T extends string> {
 /**
  * A two-to-four way choice shown all at once. Preferred over a Select where
  * the options are few and the choice drives the rest of a form (tipo de
- * lançamento, forma de pagamento) — one tap instead of open-scan-tap.
+ * registro, forma de pagamento) — one tap instead of open-scan-tap.
+ *
+ * 44px tall like every other field, so it lines up beside inputs.
  */
 export function SegmentedControl<T extends string>({
   label,
@@ -37,7 +39,7 @@ export function SegmentedControl<T extends string>({
       <div
         role="radiogroup"
         aria-label={label}
-        className="flex w-full gap-1 rounded-input border border-border bg-bg-app p-1"
+        className="flex h-11 w-full gap-1 rounded-input border border-border bg-bg-app p-1"
       >
         {options.map((option) => {
           const selected = option.value === value;
@@ -51,15 +53,15 @@ export function SegmentedControl<T extends string>({
               onClick={() => onChange(option.value)}
               style={
                 selected && activeColor
-                  ? { color: activeColor, backgroundColor: activeBackground ?? '#FFFFFF' }
+                  ? { color: activeColor, backgroundColor: activeBackground ?? 'rgb(var(--c-surface))' }
                   : undefined
               }
-              className={`flex min-h-[38px] flex-1 items-center justify-center gap-1.5 rounded-[9px] px-2 text-body-strong
+              className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[9px] px-2 text-body-strong
                 transition-all duration-200 ease-gentle
                 disabled:cursor-not-allowed disabled:opacity-50
                 ${
                   selected
-                    ? `shadow-card ${activeColor ? '' : 'bg-white text-evergreen'}`
+                    ? `shadow-card ${activeColor ? '' : 'bg-surface text-brand'}`
                     : 'text-text-secondary hover:text-text-primary'
                 }`}
             >

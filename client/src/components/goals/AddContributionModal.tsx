@@ -76,7 +76,7 @@ export function AddContributionModal({ progress, onOpenChange }: AddContribution
               key={preset}
               type="button"
               onClick={() => setAmount((current) => current + preset)}
-              className="rounded-badge border border-border bg-bg-app px-3 py-1.5 text-caption text-text-primary transition-colors hover:border-sage-green/60"
+              className="h-9 rounded-badge border border-border bg-surface px-3 text-caption font-semibold text-text-primary transition-colors hover:border-sage-green/60"
             >
               + {formatCurrency(preset)}
             </button>
@@ -85,7 +85,7 @@ export function AddContributionModal({ progress, onOpenChange }: AddContribution
             <button
               type="button"
               onClick={() => setAmount(progress.remaining)}
-              className="rounded-badge border border-border bg-tea-green/40 px-3 py-1.5 text-caption text-evergreen transition-colors hover:bg-tea-green/60"
+              className="h-9 rounded-badge border border-sage-green/40 bg-tint px-3 text-caption font-semibold text-brand transition-colors hover:border-sage-green"
             >
               Faltante ({formatCurrency(progress.remaining)})
             </button>

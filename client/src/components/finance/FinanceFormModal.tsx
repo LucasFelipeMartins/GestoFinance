@@ -5,6 +5,7 @@ import { useToast } from '@/context/ToastContext';
 import { getApiErrorMessage } from '@/services/api';
 import { FinanceEntry, FinanceKind } from '@/types';
 import { FINANCE_META } from '@/utils/financeMeta';
+import { installmentCount, paidInstallmentCount } from '@/utils/finance';
 import { toDateInputValue } from '@/utils/formatters';
 
 interface FinanceFormModalProps {
@@ -23,9 +24,16 @@ export function FinanceFormModal({ open, onOpenChange, entry, lockedKind }: Fina
   const isEditing = Boolean(entry);
   const isSubmitting = createEntry.isPending || updateEntry.isPending;
   const kind = entry?.kind ?? lockedKind;
-  const label = kind ? FINANCE_META[kind].label.toLowerCase() : 'lançamento';
+  const label = kind ? FINANCE_META[kind].label.toLowerCase() : 'registro';
 
   const handleSubmit = async (values: FinanceFormValues) => {
+    const isCard = values.kind === 'expense' && values.paymentMethod === 'card';
+    const installments = isCard ? Math.max(1, values.installments ?? 1) : 1;
+    // One number drives both flags: for a parcelado it is what the stepper
+    // says; for pix / à vista the checkbox maps to "all" or "none".
+    const paidInstallments =
+      installments > 1 ? Math.min(installments, values.paidInstallments ?? 0) : values.paid ? 1 : 0;
+
     const payload = {
       kind: values.kind,
       description: values.description,
@@ -33,9 +41,10 @@ export function FinanceFormModal({ open, onOpenChange, entry, lockedKind }: Fina
       date: values.date,
       category: values.category || undefined,
       notes: values.notes || undefined,
-      paid: values.paid ?? false,
+      paid: paidInstallments >= installments,
       paymentMethod: values.paymentMethod,
-      installments: values.installments,
+      installments,
+      paidInstallments,
       cdiPercent: values.cdiPercent,
     };
 
@@ -45,10 +54,10 @@ export function FinanceFormModal({ open, onOpenChange, entry, lockedKind }: Fina
       } else {
         await createEntry.mutateAsync(payload);
       }
-      toast.success(isEditing ? 'Lançamento atualizado.' : 'Lançamento criado.');
+      toast.success(isEditing ? 'Registro atualizado.' : 'Registro salvo.');
       onOpenChange(false);
     } catch (error) {
-      toast.error(getApiErrorMessage(error, 'Não foi possível salvar o lançamento.'));
+      toast.error(getApiErrorMessage(error, 'Não foi possível salvar.'));
     }
   };
 
@@ -74,7 +83,8 @@ export function FinanceFormModal({ open, onOpenChange, entry, lockedKind }: Fina
                 notes: entry.notes ?? '',
                 paid: entry.paid,
                 paymentMethod: entry.paymentMethod ?? 'pix',
-                installments: entry.installments ?? 1,
+                installments: installmentCount(entry),
+                paidInstallments: paidInstallmentCount(entry),
                 cdiPercent: entry.cdiPercent ?? 100,
               }
             : { kind: lockedKind }
@@ -82,7 +92,7 @@ export function FinanceFormModal({ open, onOpenChange, entry, lockedKind }: Fina
         onSubmit={handleSubmit}
         onCancel={() => onOpenChange(false)}
         isSubmitting={isSubmitting}
-        submitLabel={isEditing ? 'Salvar alterações' : 'Salvar lançamento'}
+        submitLabel={isEditing ? 'Salvar alterações' : 'Salvar'}
       />
     </Modal>
   );

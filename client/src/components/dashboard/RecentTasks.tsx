@@ -35,7 +35,7 @@ export function RecentTasks({ tasks }: { tasks: TaskWithClient[] }) {
       <div className="flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-h3 text-text-primary">
           <ListChecks size={19} className="text-sage-green" />
-          Tarefas Pendentes
+          Tarefas pendentes
         </h3>
         <button
           type="button"
@@ -72,11 +72,15 @@ export function RecentTasks({ tasks }: { tasks: TaskWithClient[] }) {
                 </button>
                 <div className="flex shrink-0 flex-col items-end gap-1.5">
                   {overdue ? (
-                    <Badge tone="danger">Vencida</Badge>
+                    <Badge tone="danger">Atrasada</Badge>
                   ) : task.dueDate ? (
                     <span className="text-caption text-text-secondary">{formatTaskDue(task.dueDate)}</span>
                   ) : null}
-                  <StatusBadge status={task.status} />
+                  {/* Every task here is open, so the status only earns its
+                      room where there is room. */}
+                  <span className="hidden sm:inline-flex">
+                    <StatusBadge status={task.status} />
+                  </span>
                 </div>
                 <PriorityFlag priority={task.priority} />
                 <div onClick={(e) => e.stopPropagation()}>

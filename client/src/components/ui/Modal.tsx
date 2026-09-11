@@ -28,28 +28,26 @@ export function Modal({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-evergreen/40 backdrop-blur-[2px] animate-backdrop-in" />
+        <Dialog.Overlay className="fixed inset-0 z-40 animate-backdrop-in bg-overlay/50 backdrop-blur-[2px]" />
         <Dialog.Content
           onPointerDownOutside={(e) => preventOutsideClose && e.preventDefault()}
           onEscapeKeyDown={(e) => preventOutsideClose && e.preventDefault()}
           className={`fixed left-1/2 top-1/2 z-50 w-[calc(100%-32px)] ${maxWidth} -translate-x-1/2 -translate-y-1/2
-            max-h-[85vh] overflow-y-auto rounded-modal bg-white p-6 shadow-elevated animate-modal-in
-            sm:p-8`}
+            max-h-[calc(100dvh-32px)] overflow-y-auto rounded-modal border border-border bg-surface p-5 shadow-elevated animate-modal-in
+            sm:max-h-[88vh] sm:p-7`}
         >
-          <div className="flex items-start justify-between gap-4 mb-1">
-            <div>
+          <div className="mb-1 flex items-start justify-between gap-4">
+            <div className="min-w-0">
               <Dialog.Title className="text-h3 text-text-primary">{title}</Dialog.Title>
               {description && (
-                <Dialog.Description className="mt-1 text-body text-text-secondary">
-                  {description}
-                </Dialog.Description>
+                <Dialog.Description className="mt-1 text-body text-text-secondary">{description}</Dialog.Description>
               )}
             </div>
             <Dialog.Close asChild>
               <button
                 type="button"
                 aria-label="Fechar"
-                className="shrink-0 rounded-full p-1.5 text-text-secondary hover:bg-bg-app hover:text-text-primary transition-colors"
+                className="-mr-1.5 -mt-1.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-text-secondary transition-colors hover:bg-tint hover:text-text-primary"
               >
                 <X size={20} />
               </button>

@@ -16,23 +16,23 @@ import { SyncIndicator } from './SyncIndicator';
 import { DownloadAppButton } from './DownloadAppButton';
 
 /**
- * Two sections rather than one flat list: with six destinations, grouping
+ * Two sections rather than one flat list: with seven destinations, grouping
  * "o que você faz" apart from "quanto isso rende" keeps the sidebar
  * scannable instead of turning it into a wall of links.
  */
 const NAV_SECTIONS = [
   {
-    title: 'Operação',
+    title: 'Dia a dia',
     items: [
-      { to: '/', label: 'Home', icon: Home, end: true },
+      { to: '/', label: 'Resumo', icon: Home, end: true },
       { to: '/clientes', label: 'Clientes', icon: Users },
       { to: '/tarefas', label: 'Tarefas', icon: CheckSquare },
     ],
   },
   {
-    title: 'Financeiro',
+    title: 'Dinheiro',
     items: [
-      { to: '/lucros', label: 'Lucros', icon: TrendingUp },
+      { to: '/receitas', label: 'Receitas', icon: TrendingUp },
       { to: '/despesas', label: 'Despesas', icon: Receipt },
       { to: '/investimentos', label: 'Investimentos', icon: PiggyBank },
       { to: '/metas', label: 'Metas', icon: Flag },
@@ -43,20 +43,22 @@ const NAV_SECTIONS = [
 export function Sidebar() {
   const { requestLogout, dialog } = useLogoutConfirm();
 
+  // The sidebar is always dark (its own brand surface), so the active item
+  // keeps the fixed tea-green/evergreen pairing in both themes.
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-3 rounded-[12px] px-4 py-2.5 text-body-strong transition-all duration-200 ease-gentle ${
       isActive ? 'bg-tea-green text-evergreen' : 'text-white/85 hover:bg-white/10 hover:text-white'
     }`;
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-[250px] flex-col overflow-y-auto bg-evergreen px-4 py-6 text-white lg:flex">
+    <aside className="fixed inset-y-0 left-0 z-30 hidden w-[250px] flex-col overflow-y-auto border-r border-white/5 bg-sidebar px-4 py-6 text-white lg:flex">
       <div className="mb-7 flex items-center gap-3 px-2">
         <span className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-white/10">
           <Handshake size={22} className="text-tea-green" />
         </span>
         <div>
           <p className="text-h3 leading-tight text-white">GestorPro</p>
-          <p className="text-caption text-white/60">Clientes · Tarefas · Finanças</p>
+          <p className="text-caption text-white/60">Seu negócio em dia</p>
         </div>
       </div>
 

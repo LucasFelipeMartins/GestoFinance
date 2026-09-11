@@ -41,9 +41,9 @@ export function OperationSummary({ clients, tasks }: OperationSummaryProps) {
     },
     {
       icon: <AlertTriangle size={17} />,
-      label: 'Vencidas',
+      label: 'Atrasadas',
       value: tasks.overdue,
-      caption: tasks.overdue > 0 ? 'Precisam de atenção' : 'Tudo em dia',
+      caption: tasks.overdue > 0 ? 'Passaram do prazo' : 'Tudo em dia',
       to: '/tarefas',
       attention: tasks.overdue > 0,
     },
@@ -52,7 +52,7 @@ export function OperationSummary({ clients, tasks }: OperationSummaryProps) {
   return (
     <Card>
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-h3 text-text-primary">Operação</h3>
+        <h3 className="text-h3 text-text-primary">Clientes e tarefas</h3>
         <Link
           to="/tarefas"
           className="inline-flex items-center gap-1 text-body-strong text-sage-green hover:underline"
@@ -68,7 +68,7 @@ export function OperationSummary({ clients, tasks }: OperationSummaryProps) {
             <Link
               key={item.label}
               to={item.to}
-              className="group rounded-input px-1 py-1 transition-colors hover:bg-bg-app"
+              className="group rounded-input px-2 py-1.5 transition-colors hover:bg-tint"
             >
               <span className="flex items-center gap-1.5 text-caption font-semibold text-text-secondary">
                 <span className="text-sage-green" aria-hidden="true">
@@ -91,8 +91,8 @@ export function OperationSummary({ clients, tasks }: OperationSummaryProps) {
         <div className="flex items-center gap-3 border-t border-border pt-4 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0">
           <PercentRing value={tasks.completionRate} />
           <div>
-            <p className="text-body-strong text-text-primary">Conclusão</p>
-            <p className="text-caption text-text-secondary">das tarefas</p>
+            <p className="text-body-strong text-text-primary">Tarefas feitas</p>
+            <p className="text-caption text-text-secondary">do total</p>
           </div>
         </div>
       </div>

@@ -30,6 +30,14 @@ export interface FinanceEntryDocument extends Document {
   /** 1 for pix or a single-shot card charge; > 1 spreads the amount across
    * that many months starting at `date`. */
   installments?: number;
+  /**
+   * How many of those parcelas are already settled (0..installments). The
+   * next one due is parcela `paidInstallments + 1`, falling due
+   * `paidInstallments` months after `date`. `paid` is derived from it:
+   * true once every parcela is in. Rows written before this field existed
+   * have no value — they read as "all paid" when `paid` is set, else none.
+   */
+  paidInstallments?: number;
 
   // --- investment-only ---
   /** Percentage OF the CDI the application yields (e.g. 110 = 110% do CDI),
@@ -54,6 +62,7 @@ const financeEntrySchema = new Schema<FinanceEntryDocument>({
   paidAt: { type: Date },
   paymentMethod: { type: String, enum: PAYMENT_METHODS },
   installments: { type: Number, min: 1, max: 120 },
+  paidInstallments: { type: Number, min: 0, max: 120 },
   cdiPercent: { type: Number, min: 0 },
   createdAt: { type: Date, required: true },
   updatedAt: { type: Date, required: true },

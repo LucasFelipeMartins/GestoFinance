@@ -19,6 +19,7 @@ interface NormalizableEntry {
   paidAt?: Date;
   paymentMethod?: PaymentMethod;
   installments?: number;
+  paidInstallments?: number;
   cdiPercent?: number;
   clientId?: string;
   [key: string]: unknown;
@@ -30,8 +31,21 @@ function normalizeByKind(entry: NormalizableEntry): NormalizableEntry {
   if (entry.kind === 'expense') {
     entry.cdiPercent = undefined;
     // Parcelas only mean something on a card; a pix always lands in one go.
-    if (entry.paymentMethod !== 'card') entry.installments = 1;
+    const count = entry.paymentMethod === 'card' ? Math.max(1, Math.round(entry.installments ?? 1)) : 1;
+    entry.installments = count;
+
+    // `paid` and `paidInstallments` describe the same fact from two angles,
+    // so keep them in step: the count is the source of truth when present,
+    // and a bare `paid` flag (older clients, the native app) maps to
+    // all-or-nothing.
+    const paidCount = Math.max(
+      0,
+      Math.min(count, Math.round(entry.paidInstallments ?? (entry.paid ? count : 0)))
+    );
+    entry.paidInstallments = paidCount;
+    entry.paid = paidCount >= count;
     if (!entry.paid) entry.paidAt = undefined;
+    else entry.paidAt = entry.paidAt ?? new Date();
     return entry;
   }
 
@@ -40,6 +54,7 @@ function normalizeByKind(entry: NormalizableEntry): NormalizableEntry {
   entry.paidAt = undefined;
   entry.paymentMethod = undefined;
   entry.installments = undefined;
+  entry.paidInstallments = undefined;
   if (entry.kind === 'income') entry.cdiPercent = undefined;
   return entry;
 }
@@ -106,6 +121,17 @@ export const updateFinanceEntry = asyncHandler(async (req: Request, res: Respons
   // Fold the stored values in before normalising. Without this a partial
   // update that omits `paid` would read as "not paid" and normalizeByKind
   // would clear paidAt on an already-settled despesa.
+  //
+  // A `paid` flag sent without a parcela count (the "já foi pago" toggle
+  // from a client that doesn't track parcelas) means all-or-nothing, so it
+  // must override the stored count rather than be overridden by it.
+  const paidInstallments =
+    data.paidInstallments !== undefined
+      ? data.paidInstallments
+      : data.paid !== undefined
+        ? undefined
+        : entry.paidInstallments;
+
   Object.assign(
     entry,
     normalizeByKind({
@@ -115,6 +141,7 @@ export const updateFinanceEntry = asyncHandler(async (req: Request, res: Respons
       paidAt: data.paidAt ?? entry.paidAt,
       paymentMethod: data.paymentMethod ?? entry.paymentMethod,
       installments: data.installments ?? entry.installments,
+      paidInstallments,
     })
   );
 

@@ -1,17 +1,10 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { Table2 } from 'lucide-react';
 import { FinanceKind } from '@/types';
 import { MonthBucket } from '@/utils/finance';
 import { FINANCE_META, FINANCE_KIND_ORDER } from '@/utils/financeMeta';
 import { formatCompactCurrency, formatCurrency } from '@/utils/formatters';
 import { SeriesMark, SeriesMarkKey } from './SeriesMark';
-
-const SURFACE = '#FFFFFF';
-const GRID = '#EAF0E6';
-const AXIS_TEXT = '#66705F';
-/** Connects a nudged endpoint label back to its marker — a step darker than
- * the grid so it reads as a connector rather than another gridline. */
-const LEADER = '#C4D2BE';
 
 const CHART_HEIGHT = 288;
 /**
@@ -21,6 +14,8 @@ const CHART_HEIGHT = 288;
  * Home at the xl breakpoint measures ~530px inside its card.
  */
 const ENDPOINT_LABEL_MIN_WIDTH = 470;
+/** How long the left-to-right reveal takes; marker pops are spread over it. */
+const REVEAL_MS = 1100;
 
 /**
  * Rounds a value up to the next clean step. The ladder is deliberately
@@ -35,6 +30,60 @@ function niceCeil(value: number): number {
   const normalized = value / magnitude;
   const nice = NICE_STEPS.find((step) => normalized <= step) ?? 10;
   return nice * magnitude;
+}
+
+interface Point {
+  x: number;
+  y: number;
+}
+
+function sign(value: number): number {
+  return value < 0 ? -1 : 1;
+}
+
+/** Tangent at the middle of three points (Fritsch–Carlson, as in d3's
+ * curveMonotoneX): never overshoots, so a curve through zeros stays at zero
+ * instead of dipping below the axis to look "smooth". */
+function slope3(p0: Point, p1: Point, p2: Point): number {
+  const h0 = p1.x - p0.x;
+  const h1 = p2.x - p1.x;
+  const s0 = (p1.y - p0.y) / (h0 || (h1 < 0 ? -0 : 0));
+  const s1 = (p2.y - p1.y) / (h1 || (h0 < 0 ? -0 : 0));
+  const p = (s0 * h1 + s1 * h0) / (h0 + h1);
+  return (sign(s0) + sign(s1)) * Math.min(Math.abs(s0), Math.abs(s1), 0.5 * Math.abs(p)) || 0;
+}
+
+/** Tangent at an endpoint, given the neighbour's tangent. */
+function slope2(p0: Point, p1: Point, t: number): number {
+  const h = p1.x - p0.x;
+  return h ? ((3 * (p1.y - p0.y)) / h - t) / 2 : t;
+}
+
+function bezier(p0: Point, p1: Point, t0: number, t1: number): string {
+  const dx = (p1.x - p0.x) / 3;
+  return ` C${p0.x + dx},${p0.y + dx * t0} ${p1.x - dx},${p1.y - dx * t1} ${p1.x},${p1.y}`;
+}
+
+/** A rounded line through every point that still respects the data. */
+function monotonePath(points: Point[]): string {
+  if (points.length === 0) return '';
+  const first = points[0]!;
+  let d = `M${first.x},${first.y}`;
+  if (points.length === 1) return d;
+  if (points.length === 2) return `${d} L${points[1]!.x},${points[1]!.y}`;
+
+  const n = points.length;
+  const tangents: number[] = new Array(n).fill(0);
+  for (let i = 1; i < n - 1; i += 1) {
+    tangents[i] = slope3(points[i - 1]!, points[i]!, points[i + 1]!);
+  }
+  tangents[0] = slope2(points[0]!, points[1]!, tangents[1]!);
+  tangents[n - 1] = slope2(points[n - 2]!, points[n - 1]!, tangents[n - 2]!);
+
+  for (let i = 0; i < n - 1; i += 1) {
+    d += bezier(points[i]!, points[i + 1]!, tangents[i]!, tangents[i + 1]!);
+  }
+  return d;
 }
 
 function useMeasuredWidth<T extends HTMLElement>(initialWidth = 0) {
@@ -86,17 +135,19 @@ interface FinanceChartProps {
 }
 
 /**
- * Lucros, gastos e investimentos over the last months, one line each.
+ * Receitas, despesas e investimentos over the last months, one line each.
  *
  * One y-axis for all three (they are all BRL, so they genuinely share a
  * scale). Each line can be switched off from the legend, and the choice is
- * remembered per device.
+ * remembered per device. Lines draw themselves in from the left when the
+ * data changes; the motion is skipped for reduced-motion users (index.css).
  */
 export function FinanceChart({ series, initialWidth = 0 }: FinanceChartProps) {
   const [wrapperRef, width] = useMeasuredWidth<HTMLDivElement>(initialWidth);
   const [visible, setVisible] = useState<Record<FinanceKind, boolean>>(() => readStoredVisibility());
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [showTable, setShowTable] = useState(false);
+  const idPrefix = useId().replace(/:/g, '');
 
   useEffect(() => {
     try {
@@ -122,11 +173,9 @@ export function FinanceChart({ series, initialWidth = 0 }: FinanceChartProps) {
 
   const innerWidth = Math.max(0, width - padding.left - padding.right);
   const innerHeight = CHART_HEIGHT - padding.top - padding.bottom;
+  const baselineY = padding.top + innerHeight;
 
-  const rawMax = Math.max(
-    0,
-    ...series.flatMap((bucket) => activeKinds.map((kind) => bucket[kind]))
-  );
+  const rawMax = Math.max(0, ...series.flatMap((bucket) => activeKinds.map((kind) => bucket[kind])));
   const tickCount = 4;
   // An all-zero ledger still deserves a readable axis rather than a flat line
   // pinned to an invisible scale.
@@ -138,6 +187,10 @@ export function FinanceChart({ series, initialWidth = 0 }: FinanceChartProps) {
   const yFor = (value: number) => padding.top + innerHeight - (value / maxValue) * innerHeight;
 
   const hasData = series.some((bucket) => bucket.income || bucket.expense || bucket.investment);
+
+  // Replays the draw-in when the numbers change (a new registro, a pull from
+  // sync), but not on hover or resize — those just move things.
+  const dataSignature = series.map((b) => `${b.key}:${b.income}:${b.expense}:${b.investment}`).join('|');
 
   const handlePointer = (event: React.PointerEvent<SVGSVGElement>) => {
     if (innerWidth <= 0 || series.length === 0) return;
@@ -174,23 +227,33 @@ export function FinanceChart({ series, initialWidth = 0 }: FinanceChartProps) {
         label.y = previous.y + MIN_GAP;
       }
     });
+    // Pushing down can run past the baseline into the month labels (three
+    // zeros stack there); walk back up so the stack ends at the baseline.
+    for (let i = placed.length - 1; i >= 0; i -= 1) {
+      const label = placed[i]!;
+      const next = placed[i + 1];
+      const ceiling = next ? next.y - MIN_GAP : baselineY;
+      if (label.y > ceiling) label.y = ceiling;
+    }
     return placed;
   })();
 
   const activeBucket = activeIndex !== null ? series[activeIndex] : undefined;
+  const markDelay = (index: number) =>
+    series.length <= 1 ? 0 : Math.round((index / (series.length - 1)) * REVEAL_MS * 0.85);
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h3 className="text-h3 text-text-primary">Evolução financeira</h3>
+          <h3 className="text-h3 text-text-primary">Receitas, despesas e investimentos por mês</h3>
           <p className="mt-0.5 text-caption text-text-secondary">
-            Últimos {series.length} meses · compras parceladas contam mês a mês
+            Últimos {series.length} meses · compras parceladas entram mês a mês
           </p>
         </div>
 
         {/* The legend doubles as the on/off control for each line. */}
-        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Séries do gráfico">
+        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Linhas do gráfico">
           {FINANCE_KIND_ORDER.map((kind) => {
             const meta = FINANCE_META[kind];
             const isOn = visible[kind];
@@ -200,16 +263,17 @@ export function FinanceChart({ series, initialWidth = 0 }: FinanceChartProps) {
                 type="button"
                 onClick={() => toggle(kind)}
                 aria-pressed={isOn}
-                className={`inline-flex items-center gap-2 rounded-badge border px-3 py-1.5 text-caption font-semibold
+                title={isOn ? `Ocultar ${meta.plural.toLowerCase()}` : `Mostrar ${meta.plural.toLowerCase()}`}
+                className={`inline-flex h-8 items-center gap-2 rounded-badge border px-3 text-caption font-semibold
                   transition-all duration-200 ease-gentle
                   ${
                     isOn
                       ? 'border-transparent text-text-primary'
-                      : 'border-border bg-white text-text-secondary opacity-60 hover:opacity-100'
+                      : 'border-border bg-surface text-text-secondary opacity-60 hover:opacity-100'
                   }`}
                 style={isOn ? { backgroundColor: meta.soft } : undefined}
               >
-                <SeriesMarkKey shape={meta.shape} color={isOn ? meta.color : '#9AA396'} withLine />
+                <SeriesMarkKey shape={meta.shape} color={isOn ? meta.color : 'rgb(var(--c-text-secondary))'} withLine />
                 {meta.plural}
               </button>
             );
@@ -222,7 +286,7 @@ export function FinanceChart({ series, initialWidth = 0 }: FinanceChartProps) {
         className="relative w-full"
         tabIndex={0}
         role="application"
-        aria-label={`Gráfico de linhas com lucros, gastos e investimentos dos últimos ${series.length} meses. Use as setas para percorrer os meses.`}
+        aria-label={`Gráfico de linhas com receitas, despesas e investimentos dos últimos ${series.length} meses. Use as setas para percorrer os meses.`}
         onKeyDown={handleKeyDown}
         onBlur={() => setActiveIndex(null)}
       >
@@ -231,10 +295,32 @@ export function FinanceChart({ series, initialWidth = 0 }: FinanceChartProps) {
             width={width}
             height={CHART_HEIGHT}
             viewBox={`0 0 ${width} ${CHART_HEIGHT}`}
-            className="touch-pan-y"
+            className="touch-pan-y overflow-visible"
             onPointerMove={handlePointer}
             onPointerLeave={() => setActiveIndex(null)}
           >
+            <defs>
+              {FINANCE_KIND_ORDER.map((kind) => (
+                <linearGradient key={kind} id={`${idPrefix}-area-${kind}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" style={{ stopColor: FINANCE_META[kind].color, stopOpacity: 0.22 }} />
+                  <stop offset="100%" style={{ stopColor: FINANCE_META[kind].color, stopOpacity: 0 }} />
+                </linearGradient>
+              ))}
+              {/* One reveal clip per series, keyed with the data so it replays. */}
+              {activeKinds.map((kind) => (
+                <clipPath key={`${kind}-${dataSignature}`} id={`${idPrefix}-clip-${kind}`}>
+                  <rect
+                    x={padding.left - 8}
+                    y={0}
+                    width={innerWidth + 16}
+                    height={CHART_HEIGHT}
+                    className="animate-chart-reveal"
+                    style={{ transformOrigin: `${padding.left - 8}px 0px` }}
+                  />
+                </clipPath>
+              ))}
+            </defs>
+
             {/* Gridlines: solid hairlines, one shade off the surface. */}
             {Array.from({ length: tickCount + 1 }, (_, i) => {
               const value = step * i;
@@ -246,7 +332,7 @@ export function FinanceChart({ series, initialWidth = 0 }: FinanceChartProps) {
                     y1={y}
                     x2={padding.left + innerWidth}
                     y2={y}
-                    stroke={GRID}
+                    className="stroke-chart-grid"
                     strokeWidth={1}
                   />
                   <text
@@ -254,7 +340,7 @@ export function FinanceChart({ series, initialWidth = 0 }: FinanceChartProps) {
                     y={y + 4}
                     textAnchor="end"
                     fontSize={11}
-                    fill={AXIS_TEXT}
+                    className="fill-text-secondary"
                   >
                     {value === 0 ? 'R$ 0' : formatCompactCurrency(value)}
                   </text>
@@ -271,37 +357,48 @@ export function FinanceChart({ series, initialWidth = 0 }: FinanceChartProps) {
                 textAnchor="middle"
                 fontSize={11}
                 fontWeight={activeIndex === index ? 700 : 500}
-                fill={AXIS_TEXT}
+                className={activeIndex === index ? 'fill-text-primary' : 'fill-text-secondary'}
               >
                 {bucket.label.charAt(0).toUpperCase() + bucket.label.slice(1)}
               </text>
             ))}
 
-            {/* Crosshair — readers aim at a month, never at a 2px line. */}
-            {activeIndex !== null && (
-              <line
-                x1={xFor(activeIndex)}
-                y1={padding.top - 6}
-                x2={xFor(activeIndex)}
-                y2={padding.top + innerHeight}
-                stroke="#C4D2BE"
-                strokeWidth={1}
-              />
-            )}
+            {/* Crosshair — readers aim at a month, never at a 2px line. It
+                slides between months instead of jumping. */}
+            <line
+              x1={0}
+              y1={padding.top - 6}
+              x2={0}
+              y2={baselineY}
+              className="stroke-chart-leader"
+              strokeWidth={1}
+              strokeDasharray="3 3"
+              style={{
+                transform: `translateX(${activeIndex !== null ? xFor(activeIndex) : xFor(series.length - 1)}px)`,
+                opacity: activeIndex !== null ? 1 : 0,
+                transition: 'transform 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 150ms ease',
+              }}
+            />
 
-            {FINANCE_KIND_ORDER.filter((kind) => visible[kind]).map((kind) => {
+            {activeKinds.map((kind) => {
               const meta = FINANCE_META[kind];
-              const path = series
-                .map((bucket, index) => `${index === 0 ? 'M' : 'L'} ${xFor(index)} ${yFor(bucket[kind])}`)
-                .join(' ');
+              const points = series.map((bucket, index) => ({ x: xFor(index), y: yFor(bucket[kind]) }));
+              const line = monotonePath(points);
+              const first = points[0];
+              const last = points[points.length - 1];
+              const area =
+                first && last && points.length > 1
+                  ? `${line} L${last.x},${baselineY} L${first.x},${baselineY} Z`
+                  : '';
 
               return (
-                <g key={kind}>
+                <g key={`${kind}-${dataSignature}`} clipPath={`url(#${idPrefix}-clip-${kind})`}>
+                  {area && <path d={area} fill={`url(#${idPrefix}-area-${kind})`} stroke="none" />}
                   <path
-                    d={path}
+                    d={line}
                     fill="none"
-                    stroke={meta.color}
-                    strokeWidth={2}
+                    style={{ stroke: meta.color }}
+                    strokeWidth={2.5}
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   />
@@ -312,8 +409,14 @@ export function FinanceChart({ series, initialWidth = 0 }: FinanceChartProps) {
                       color={meta.color}
                       cx={xFor(index)}
                       cy={yFor(bucket[kind])}
-                      size={activeIndex === index ? 6 : 4.5}
-                      surface={SURFACE}
+                      size={activeIndex === index ? 6.5 : 4.5}
+                      className="animate-mark-pop"
+                      style={{
+                        transformBox: 'fill-box',
+                        transformOrigin: 'center',
+                        animationDelay: `${markDelay(index)}ms`,
+                        transition: 'r 150ms ease, width 150ms ease, height 150ms ease',
+                      }}
                     />
                   ))}
                 </g>
@@ -322,18 +425,17 @@ export function FinanceChart({ series, initialWidth = 0 }: FinanceChartProps) {
 
             {/* Direct labels on the newest point, per series. */}
             {endpointLabels.map((label) => {
-              const meta = FINANCE_META[label.kind];
               const markerX = xFor(series.length - 1);
               const markerY = yFor(label.value);
               return (
-                <g key={`label-${label.kind}`}>
+                <g key={`label-${label.kind}`} className="animate-fade-up" style={{ animationDelay: `${REVEAL_MS * 0.8}ms` }}>
                   {Math.abs(label.y - markerY) > 2 && (
                     <line
                       x1={markerX + 7}
                       y1={markerY}
                       x2={padding.left + innerWidth + 8}
                       y2={label.y}
-                      stroke={LEADER}
+                      className="stroke-chart-leader"
                       strokeWidth={1}
                     />
                   )}
@@ -342,7 +444,7 @@ export function FinanceChart({ series, initialWidth = 0 }: FinanceChartProps) {
                     y={label.y + 4}
                     fontSize={11}
                     fontWeight={600}
-                    fill={AXIS_TEXT}
+                    className="fill-text-secondary"
                   >
                     {formatCompactCurrency(label.value)}
                   </text>
@@ -353,10 +455,10 @@ export function FinanceChart({ series, initialWidth = 0 }: FinanceChartProps) {
             {/* Baseline last, so it sits above the gridlines. */}
             <line
               x1={padding.left}
-              y1={padding.top + innerHeight}
+              y1={baselineY}
               x2={padding.left + innerWidth}
-              y2={padding.top + innerHeight}
-              stroke="#D6E2D1"
+              y2={baselineY}
+              className="stroke-chart-baseline"
               strokeWidth={1}
             />
           </svg>
@@ -364,15 +466,15 @@ export function FinanceChart({ series, initialWidth = 0 }: FinanceChartProps) {
 
         {!hasData && width > 0 && (
           <p className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-body text-text-secondary">
-            Nenhum lançamento nos últimos {series.length} meses.
+            Nenhum registro nos últimos {series.length} meses.
           </p>
         )}
 
         {activeBucket && (
           <div
-            className="pointer-events-none absolute z-10 min-w-[172px] rounded-input border border-border bg-white p-3 shadow-elevated"
+            className="pointer-events-none absolute z-10 min-w-[200px] animate-fade-up rounded-input border border-border bg-surface-2 p-3 shadow-elevated"
             style={{
-              left: Math.min(Math.max(xFor(activeIndex!) - 86, 4), Math.max(4, width - 180)),
+              left: Math.min(Math.max(xFor(activeIndex!) - 100, 4), Math.max(4, width - 208)),
               top: 4,
             }}
             role="status"
@@ -387,15 +489,27 @@ export function FinanceChart({ series, initialWidth = 0 }: FinanceChartProps) {
                       <SeriesMarkKey shape={meta.shape} color={meta.color} withLine />
                       {meta.plural}
                     </span>
-                    <span className="text-body-strong text-text-primary">
+                    <span className="text-body-strong tabular-nums text-text-primary">
                       {formatCurrency(activeBucket[kind])}
                     </span>
                   </li>
                 );
               })}
-              {activeKinds.length === 0 && (
-                <li className="text-caption text-text-secondary">Nenhuma linha ativa.</li>
+              {activeKinds.length > 1 && visible.income && visible.expense && (
+                <li className="mt-1 flex items-center justify-between gap-3 border-t border-border pt-1.5">
+                  <span className="text-caption text-text-secondary" title="Receitas menos despesas">
+                    Lucro
+                  </span>
+                  <span
+                    className={`whitespace-nowrap text-body-strong tabular-nums ${
+                      activeBucket.net >= 0 ? 'text-finance-income' : 'text-danger'
+                    }`}
+                  >
+                    {formatCurrency(activeBucket.net)}
+                  </span>
+                </li>
               )}
+              {activeKinds.length === 0 && <li className="text-caption text-text-secondary">Nenhuma linha ativa.</li>}
             </ul>
           </div>
         )}
@@ -409,7 +523,7 @@ export function FinanceChart({ series, initialWidth = 0 }: FinanceChartProps) {
           className="inline-flex items-center gap-1.5 text-caption font-semibold text-sage-green hover:underline"
         >
           <Table2 size={14} />
-          {showTable ? 'Ocultar tabela' : 'Ver como tabela'}
+          {showTable ? 'Ocultar tabela' : 'Ver em tabela'}
         </button>
 
         {showTable && (
@@ -429,12 +543,15 @@ export function FinanceChart({ series, initialWidth = 0 }: FinanceChartProps) {
                       {FINANCE_META[kind].plural}
                     </th>
                   ))}
+                  <th scope="col" className="py-2 text-right text-caption font-semibold text-text-secondary">
+                    Lucro
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {series.map((bucket) => (
                   <tr key={bucket.key} className="border-b border-border/60 last:border-0">
-                    <th scope="row" className="py-2 pr-3 text-body text-text-primary">
+                    <th scope="row" className="py-2 pr-3 text-body font-normal text-text-primary">
                       {bucket.fullLabel}
                     </th>
                     {FINANCE_KIND_ORDER.map((kind) => (
@@ -442,6 +559,13 @@ export function FinanceChart({ series, initialWidth = 0 }: FinanceChartProps) {
                         {formatCurrency(bucket[kind])}
                       </td>
                     ))}
+                    <td
+                      className={`py-2 text-right text-body-strong tabular-nums ${
+                        bucket.net >= 0 ? 'text-finance-income' : 'text-danger'
+                      }`}
+                    >
+                      {formatCurrency(bucket.net)}
+                    </td>
                   </tr>
                 ))}
               </tbody>

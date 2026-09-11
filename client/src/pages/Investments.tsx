@@ -16,13 +16,14 @@ function stats(entries: FinanceEntry[]): LedgerStat[] {
       caption: `${entries.length} aplicaç${entries.length === 1 ? 'ão' : 'ões'}`,
     },
     {
-      label: 'Aplicado este mês',
+      label: 'Investido este mês',
       value: formatCurrency(totalsForMonth(entries).investment),
+      caption: 'Aplicações feitas no mês atual',
     },
     {
-      label: 'Rendimento estimado / mês',
+      label: 'Rende por mês (estimado)',
       value: formatCurrency(estimateMonthlyYield(entries, annualCdi)),
-      caption: `Bruto, com CDI a ${annualCdi.toLocaleString('pt-BR')}% ao ano`,
+      caption: `Antes do imposto, com CDI a ${annualCdi.toLocaleString('pt-BR')}% ao ano`,
     },
   ];
 }
@@ -31,23 +32,25 @@ export default function Investments() {
   // Set by "Simular rendimento" on a row, so the simulator opens already
   // filled with that application's value and percentual do CDI.
   const [seed, setSeed] = useState<SimulatorSeed | undefined>();
+  const [simulatorOpen, setSimulatorOpen] = useState(false);
 
   return (
     <FinanceLedgerPage
       kind="investment"
       title="Investimentos"
-      subtitle="Onde o dinheiro está aplicado e quanto ele rende a um determinado percentual do CDI."
+      subtitle="Onde seu dinheiro está aplicado e quanto ele rende. Use o simulador para ver quanto um valor renderia."
       stats={stats}
-      emptyDescription="Cadastre suas aplicações para acompanhar o total investido e simular o rendimento."
-      onSimulate={(entry) =>
+      emptyDescription="Registre suas aplicações para acompanhar o total investido e simular o rendimento."
+      onSimulate={(entry) => {
         setSeed({
           amount: entry.amount,
           cdiPercent: entry.cdiPercent,
           description: entry.description,
-        })
-      }
+        });
+        setSimulatorOpen(true);
+      }}
     >
-      <InvestmentSimulator seed={seed} />
+      <InvestmentSimulator seed={seed} open={simulatorOpen} onOpenChange={setSimulatorOpen} />
     </FinanceLedgerPage>
   );
 }

@@ -24,6 +24,7 @@ export interface FinanceCreatePayload {
   paidAt?: string;
   paymentMethod?: PaymentMethod;
   installments?: number;
+  paidInstallments?: number;
   cdiPercent?: number;
   createdAt: string;
   updatedAt: string;

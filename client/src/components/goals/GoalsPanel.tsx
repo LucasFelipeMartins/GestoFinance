@@ -11,7 +11,7 @@ import { GoalDetailModal } from './GoalDetailModal';
 import { useGoals } from '@/hooks/useGoals';
 import { Goal, GoalProgress } from '@/types';
 import { formatCurrency, formatDate, formatRelativeDate } from '@/utils/formatters';
-import { GOAL_ACCENT, GOAL_DONE } from './goalColors';
+import { GOAL_ACCENT, GOAL_DONE, GOAL_OVERDUE } from './goalColors';
 
 /**
  * Metas: what the user is saving for, and how close they are.
@@ -59,19 +59,19 @@ export function GoalsPanel({ limit = 4 }: { limit?: number }) {
               : `${open} em andamento · ${done} concluída(s)`}
           </p>
         </div>
-        <Button size="sm" leftIcon={<Plus size={16} />} onClick={openAdd} className="shrink-0">
+        <Button size="sm" leftIcon={<Plus size={16} />} onClick={openAdd}>
           Nova meta
         </Button>
       </div>
 
       {visible.length === 0 ? (
         <div className="mt-5 flex flex-col items-center gap-3 rounded-input border border-dashed border-border px-4 py-8 text-center">
-          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-tea-green/50 text-sage-green">
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-tint text-sage-green">
             <Flag size={20} />
           </span>
           <p className="text-body text-text-secondary">
-            Nenhuma meta ainda. Crie uma — &ldquo;Viajar&rdquo;, R$ 1.200, em 5 meses — e adicione
-            valores quando quiser.
+            Nenhuma meta ainda. Crie uma — &ldquo;Viajar&rdquo;, R$ 1.200, em 5 meses — e vá
+            adicionando valores quando quiser.
           </p>
           <Button size="sm" variant="secondary" leftIcon={<Plus size={16} />} onClick={openAdd}>
             Criar meta
@@ -140,7 +140,7 @@ function GoalRow({
   onAddValue: () => void;
 }) {
   const { goal } = progress;
-  const accent = progress.isComplete ? GOAL_DONE : progress.isOverdue ? '#D93A3A' : GOAL_ACCENT;
+  const accent = progress.isComplete ? GOAL_DONE : progress.isOverdue ? GOAL_OVERDUE : GOAL_ACCENT;
 
   const deadlineLabel = progress.isComplete
     ? 'Meta alcançada!'
@@ -164,12 +164,11 @@ function GoalRow({
               {progress.isComplete && <CheckCircle2 size={15} style={{ color: GOAL_DONE }} />}
             </p>
             <p
-              className="truncate text-caption"
-              style={{ color: progress.isOverdue && !progress.isComplete ? '#D93A3A' : undefined }}
+              className={`truncate text-caption ${
+                progress.isOverdue && !progress.isComplete ? 'text-danger' : 'text-text-secondary'
+              }`}
             >
-              <span className={progress.isOverdue && !progress.isComplete ? '' : 'text-text-secondary'}>
-                {deadlineLabel}
-              </span>
+              {deadlineLabel}
             </p>
           </div>
           <div className="shrink-0 text-right">

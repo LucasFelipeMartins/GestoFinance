@@ -15,17 +15,17 @@ export function DeleteFinanceDialog({ entry, onOpenChange, onDeleted }: DeleteFi
   const deleteEntry = useDeleteFinanceEntry();
   const toast = useToast();
 
-  const label = entry ? FINANCE_META[entry.kind].label.toLowerCase() : 'lançamento';
+  const label = entry ? FINANCE_META[entry.kind].label.toLowerCase() : 'registro';
 
   const handleConfirm = async () => {
     if (!entry) return;
     try {
       await deleteEntry.mutateAsync(entry.id);
-      toast.success('Lançamento removido.');
+      toast.success('Registro removido.');
       onOpenChange(false);
       onDeleted?.();
     } catch (error) {
-      toast.error(getApiErrorMessage(error, 'Não foi possível remover o lançamento.'));
+      toast.error(getApiErrorMessage(error, 'Não foi possível remover o registro.'));
     }
   };
 

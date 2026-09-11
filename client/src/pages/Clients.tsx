@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Users, X, ArrowUpDown } from 'lucide-react';
+import { Plus, Users } from 'lucide-react';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { SearchInput } from '@/components/ui/SearchInput';
-import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
+import {
+  FilterBar,
+  FilterSearch,
+  FilterGroup,
+  FilterSelect,
+  SortControl,
+  ClearFiltersButton,
+} from '@/components/ui/FilterBar';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SkeletonList } from '@/components/ui/Skeleton';
 import { ClientTable } from '@/components/clients/ClientTable';
@@ -25,7 +31,7 @@ const SORT_OPTIONS = [
   { value: 'price', label: 'Preço' },
   { value: 'priority', label: 'Prioridade' },
   { value: 'deliveryDate', label: 'Data de entrega' },
-  { value: 'status', label: 'Status' },
+  { value: 'status', label: 'Situação' },
 ];
 
 export default function Clients() {
@@ -84,7 +90,7 @@ export default function Clients() {
       await updateStatus.mutateAsync({ id: client.id, status: 'completed' });
       toast.success(
         client.price > 0
-          ? `Cliente concluído. ${formatCurrency(client.price)} entrou nos lucros.`
+          ? `Cliente concluído. ${formatCurrency(client.price)} entrou nas receitas.`
           : 'Cliente concluído.'
       );
     } catch (error) {
@@ -96,48 +102,39 @@ export default function Clients() {
     <PageContainer>
       <PageHeader
         title="Clientes"
-        subtitle="Gerencie sua carteira de clientes e acompanhe prioridades."
+        subtitle="Sua carteira de clientes, com prioridade, prazo de entrega e situação de cada um."
         action={
-          <Button leftIcon={<Plus size={18} />} onClick={openAdd} className="shrink-0">
-            Adicionar Cliente
+          <Button leftIcon={<Plus size={18} />} onClick={openAdd}>
+            Adicionar cliente
           </Button>
         }
       />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-        <SearchInput value={search} onChange={setSearch} placeholder="Buscar por nome, telefone ou serviço" className="sm:max-w-xs sm:flex-1" />
-        <div className="grid grid-cols-2 gap-3 sm:flex sm:w-auto">
-          <Select
-            placeholder="Status"
+      <FilterBar>
+        <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por nome, telefone ou serviço" />
+        <FilterGroup>
+          <FilterSelect
+            placeholder="Situação"
             options={STATUS_OPTIONS.map((s) => ({ value: s.value, label: s.label }))}
             value={status}
             onChange={(v) => setStatus(v as EntityStatus)}
           />
-          <Select
+          <FilterSelect
             placeholder="Prioridade"
             options={PRIORITY_OPTIONS.map((p) => ({ value: p.value, label: p.label }))}
             value={priority}
             onChange={(v) => setPriority(v as Priority)}
           />
-        </div>
-        <div className="flex items-center gap-2">
-          <Select options={SORT_OPTIONS} value={sort} onChange={(v) => setSort(v as typeof sort)} placeholder="Ordenar" />
-          <button
-            type="button"
-            onClick={() => setOrder((o) => (o === 'asc' ? 'desc' : 'asc'))}
-            aria-label={order === 'asc' ? 'Ordem crescente' : 'Ordem decrescente'}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-input border border-border bg-white text-text-secondary hover:border-sage-green/60"
-          >
-            <ArrowUpDown size={17} className={order === 'asc' ? 'rotate-180' : ''} />
-          </button>
-        </div>
-        {hasFilters && (
-          <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 text-body-strong text-sage-green hover:underline">
-            <X size={15} />
-            Limpar filtros
-          </button>
-        )}
-      </div>
+        </FilterGroup>
+        <SortControl
+          options={SORT_OPTIONS}
+          value={sort}
+          onChange={(v) => setSort(v as typeof sort)}
+          order={order}
+          onToggleOrder={() => setOrder((o) => (o === 'asc' ? 'desc' : 'asc'))}
+        />
+        {hasFilters && <ClearFiltersButton onClick={clearFilters} />}
+      </FilterBar>
 
       {isLoading ? (
         <SkeletonList rows={5} />
@@ -160,7 +157,7 @@ export default function Clients() {
             description="Adicione seu primeiro cliente para começar."
             action={
               <Button leftIcon={<Plus size={18} />} onClick={openAdd}>
-                Adicionar Cliente
+                Adicionar cliente
               </Button>
             }
           />

@@ -15,8 +15,8 @@ interface PageHeaderProps {
  */
 export function PageHeader({ title, subtitle, action, eyebrow }: PageHeaderProps) {
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-      <div className="min-w-0">
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+      <div className="min-w-0 flex-1">
         {eyebrow && (
           <p className="mb-1 text-caption font-semibold uppercase tracking-wide text-sage-green">
             {eyebrow}
@@ -25,7 +25,7 @@ export function PageHeader({ title, subtitle, action, eyebrow }: PageHeaderProps
         <h2 className="text-h2 text-text-primary">{title}</h2>
         {subtitle && <p className="mt-1 text-body text-text-secondary">{subtitle}</p>}
       </div>
-      {action}
+      {action && <div className="flex shrink-0 flex-col sm:flex-row sm:items-center [&>button]:w-full sm:[&>button]:w-auto">{action}</div>}
     </div>
   );
 }

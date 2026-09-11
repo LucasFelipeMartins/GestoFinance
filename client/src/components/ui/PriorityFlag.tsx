@@ -22,10 +22,10 @@ export function PriorityFlag({ priority, size = 16 }: { priority: Priority; size
           <Tooltip.Content
             side="top"
             sideOffset={6}
-            className="rounded-md bg-evergreen px-2.5 py-1.5 text-caption text-white shadow-elevated z-50"
+            className="z-50 rounded-md border border-border bg-surface-2 px-2.5 py-1.5 text-caption text-text-primary shadow-elevated"
           >
             {meta.accessibleLabel}
-            <Tooltip.Arrow className="fill-evergreen" />
+            <Tooltip.Arrow className="fill-surface-2" />
           </Tooltip.Content>
         </Tooltip.Portal>
       </Tooltip.Root>

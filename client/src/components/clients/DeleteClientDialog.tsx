@@ -40,7 +40,7 @@ export function DeleteClientDialog({ client, onOpenChange, onDeleted }: DeleteCl
     >
       <fieldset className="flex flex-col gap-2.5">
         <legend className="mb-1 text-body-strong text-text-primary">Tarefas vinculadas a este cliente</legend>
-        <label className="flex cursor-pointer items-start gap-2.5 rounded-input border border-border p-3 has-[:checked]:border-sage-green has-[:checked]:bg-tea-green/30">
+        <label className="flex cursor-pointer items-start gap-2.5 rounded-input border border-border p-3 has-[:checked]:border-sage-green has-[:checked]:bg-tint">
           <input
             type="radio"
             name="tasksAction"

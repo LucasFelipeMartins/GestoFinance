@@ -33,7 +33,7 @@ export function TaskForm({
   onSubmit,
   onCancel,
   isSubmitting,
-  submitLabel = 'Salvar Tarefa',
+  submitLabel = 'Salvar tarefa',
   lockedClientId,
 }: TaskFormProps) {
   const { data: clients } = useClients();
@@ -88,13 +88,9 @@ export function TaskForm({
         )}
       />
 
-      <div className="flex gap-3">
-        <div className="flex-1">
-          <Input label="Prazo" type="date" error={errors.dueDate?.message} {...register('dueDate')} />
-        </div>
-        <div className="flex-1">
-          <Input label="Horário (opcional)" type="time" error={errors.dueTime?.message} {...register('dueTime')} />
-        </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Input label="Prazo" type="date" error={errors.dueDate?.message} {...register('dueDate')} />
+        <Input label="Horário (opcional)" type="time" error={errors.dueTime?.message} {...register('dueTime')} />
       </div>
 
       <Controller
@@ -117,7 +113,7 @@ export function TaskForm({
         name="status"
         render={({ field }) => (
           <Select
-            label="Status"
+            label="Situação"
             options={STATUS_OPTIONS.map((s) => ({ value: s.value, label: s.label }))}
             value={field.value}
             onChange={field.onChange}

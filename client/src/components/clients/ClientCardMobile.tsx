@@ -20,7 +20,7 @@ export function ClientCardMobile({ client, onEdit, onComplete, onDelete }: Clien
   const navigate = useNavigate();
 
   return (
-    <Card className="flex flex-col gap-3 cursor-pointer" onClick={() => navigate(`/clientes/${client.id}`)}>
+    <Card padding="sm" className="flex cursor-pointer flex-col gap-3" onClick={() => navigate(`/clientes/${client.id}`)}>
       <div className="flex items-start gap-3">
         <Avatar
           name={client.name}

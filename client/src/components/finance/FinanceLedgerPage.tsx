@@ -1,20 +1,27 @@
 import { ReactNode, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, X, ArrowUpDown, Wallet } from 'lucide-react';
+import { Plus, Wallet } from 'lucide-react';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { SearchInput } from '@/components/ui/SearchInput';
-import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SkeletonList } from '@/components/ui/Skeleton';
-import { useFinanceEntries, useSetFinancePaid } from '@/hooks/useFinance';
+import { StatGrid, StatTile } from '@/components/ui/StatTile';
+import {
+  FilterBar,
+  FilterSearch,
+  FilterSelect,
+  SortControl,
+  ClearFiltersButton,
+} from '@/components/ui/FilterBar';
+import { useFinanceEntries, usePayInstallment, useSetFinancePaid, useUndoInstallment } from '@/hooks/useFinance';
 import { useClients } from '@/hooks/useClients';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useToast } from '@/context/ToastContext';
 import { getApiErrorMessage } from '@/services/api';
 import { FinanceEntry, FinanceKind } from '@/types';
 import { FINANCE_META } from '@/utils/financeMeta';
+import { isInstallmentPlan, nextInstallment } from '@/utils/finance';
 import { FinanceEntryTable } from './FinanceEntryTable';
 import { FinanceEntryCard } from './FinanceEntryCard';
 import { FinanceFormModal } from './FinanceFormModal';
@@ -24,20 +31,21 @@ export interface LedgerStat {
   label: string;
   value: string;
   caption?: string;
-  /** Draws attention (used for vencidas). */
+  /** Draws attention (used for atrasadas). */
   attention?: boolean;
+  icon?: ReactNode;
 }
 
 const SORT_OPTIONS = [
   { value: 'date', label: 'Data' },
   { value: 'amount', label: 'Valor' },
-  { value: 'description', label: 'Descrição' },
+  { value: 'description', label: 'Nome' },
   { value: 'createdAt', label: 'Mais recentes' },
 ];
 
 const PAID_OPTIONS = [
   { value: 'all', label: 'Todas' },
-  { value: 'open', label: 'Em aberto' },
+  { value: 'open', label: 'A pagar' },
   { value: 'paid', label: 'Pagas' },
 ];
 
@@ -53,34 +61,10 @@ interface FinanceLedgerPageProps {
   emptyDescription: string;
 }
 
-function StatStrip({ stats, accent }: { stats: LedgerStat[]; accent: string }) {
-  return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-      {stats.map((stat) => (
-        <div key={stat.label} className="rounded-card border border-border bg-white p-4 shadow-card">
-          <p className="text-caption font-semibold uppercase tracking-wide text-text-secondary">
-            {stat.label}
-          </p>
-          <p
-            className="mt-1.5 text-h2 tabular-nums"
-            style={{ color: stat.attention ? '#C23131' : undefined }}
-          >
-            {stat.value}
-          </p>
-          {stat.caption && (
-            <p className="mt-0.5 text-caption text-text-secondary">{stat.caption}</p>
-          )}
-          <span className="mt-3 block h-0.5 w-9 rounded-full" style={{ backgroundColor: accent }} />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 /**
- * The shared shell behind Lucros, Despesas and Investimentos. The three pages
- * are the same ledger filtered by `kind`, so they share one implementation
- * and differ only in their stats, copy and extras.
+ * The shared shell behind Receitas, Despesas and Investimentos. The three
+ * pages are the same ledger filtered by `kind`, so they share one
+ * implementation and differ only in their stats, copy and extras.
  */
 export function FinanceLedgerPage({
   kind,
@@ -107,6 +91,8 @@ export function FinanceLedgerPage({
   const debouncedSearch = useDebounce(search, 300);
   const toast = useToast();
   const setPaid = useSetFinancePaid();
+  const payInstallment = usePayInstallment();
+  const undoInstallment = useUndoInstallment();
   const { data: clients } = useClients();
 
   const { data: entries, isLoading } = useFinanceEntries({
@@ -147,12 +133,37 @@ export function FinanceLedgerPage({
     setFormOpen(true);
   };
 
+  /** Pix / à vista flips paid; a parcelado settles its next parcela (or,
+   * when everything is already in, reopens the last one). */
   const handleTogglePaid = async (entry: FinanceEntry) => {
     try {
+      if (isInstallmentPlan(entry)) {
+        if (entry.paid) {
+          await undoInstallment.mutateAsync(entry.id);
+          toast.success('Última parcela reaberta.');
+          return;
+        }
+        const next = nextInstallment(entry);
+        await payInstallment.mutateAsync(entry.id);
+        const last = next ? next.number >= next.total : true;
+        toast.success(
+          last ? 'Última parcela paga — despesa quitada.' : `Parcela ${next?.number} marcada como paga.`
+        );
+        return;
+      }
       await setPaid.mutateAsync({ id: entry.id, paid: !entry.paid });
-      toast.success(entry.paid ? 'Conta reaberta.' : 'Conta marcada como paga.');
+      toast.success(entry.paid ? 'Despesa reaberta.' : 'Despesa marcada como paga.');
     } catch (error) {
-      toast.error(getApiErrorMessage(error, 'Não foi possível atualizar a conta.'));
+      toast.error(getApiErrorMessage(error, 'Não foi possível atualizar a despesa.'));
+    }
+  };
+
+  const handleUndoInstallment = async (entry: FinanceEntry) => {
+    try {
+      await undoInstallment.mutateAsync(entry.id);
+      toast.success('Parcela reaberta.');
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'Não foi possível reabrir a parcela.'));
     }
   };
 
@@ -164,10 +175,13 @@ export function FinanceLedgerPage({
     },
     onDelete: setDeleting,
     onTogglePaid: kind === 'expense' ? handleTogglePaid : undefined,
+    onUndoInstallment: kind === 'expense' ? handleUndoInstallment : undefined,
     onSimulate,
     onOpenClient: (clientId: string) => navigate(`/clientes/${clientId}`),
     clientName: clientNameById,
   };
+
+  const addLabel = `Adicionar ${meta.label.toLowerCase()}`;
 
   return (
     <PageContainer>
@@ -175,65 +189,54 @@ export function FinanceLedgerPage({
         title={title}
         subtitle={subtitle}
         action={
-          <Button leftIcon={<Plus size={18} />} onClick={openAdd} className="shrink-0">
-            Adicionar {meta.label.toLowerCase()}
+          <Button leftIcon={<Plus size={18} />} onClick={openAdd}>
+            {addLabel}
           </Button>
         }
       />
 
-      <StatStrip stats={stats(allEntries ?? [])} accent={meta.color} />
+      <StatGrid columns={3}>
+        {stats(allEntries ?? []).map((stat) => (
+          <StatTile
+            key={stat.label}
+            label={stat.label}
+            value={stat.value}
+            caption={stat.caption}
+            attention={stat.attention}
+            icon={stat.icon}
+            color={stat.icon ? meta.color : undefined}
+            soft={stat.icon ? meta.soft : undefined}
+            accent={stat.icon ? undefined : meta.color}
+          />
+        ))}
+      </StatGrid>
 
       {children}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-        <SearchInput
-          value={search}
-          onChange={setSearch}
-          placeholder="Buscar por descrição, categoria ou observação"
-          className="sm:max-w-sm sm:flex-1"
-        />
+      <FilterBar>
+        <FilterSearch value={search} onChange={setSearch} placeholder="Buscar por nome, categoria ou observação" />
 
         {kind === 'expense' && (
-          <div className="sm:w-40">
-            <Select options={PAID_OPTIONS} value={paidFilter} onChange={setPaidFilter} />
-          </div>
+          <FilterSelect options={PAID_OPTIONS} value={paidFilter} onChange={setPaidFilter} placeholder="Situação" />
         )}
 
-        <div className="flex items-center gap-2">
-          <Select
-            options={SORT_OPTIONS}
-            value={sort}
-            onChange={(value) => setSort(value as typeof sort)}
-            placeholder="Ordenar"
-          />
-          <button
-            type="button"
-            onClick={() => setOrder((current) => (current === 'asc' ? 'desc' : 'asc'))}
-            aria-label={order === 'asc' ? 'Ordem crescente' : 'Ordem decrescente'}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-input border border-border bg-white text-text-secondary transition-colors hover:border-sage-green/60"
-          >
-            <ArrowUpDown size={17} className={order === 'asc' ? 'rotate-180' : ''} />
-          </button>
-        </div>
+        <SortControl
+          options={SORT_OPTIONS}
+          value={sort}
+          onChange={(value) => setSort(value as typeof sort)}
+          order={order}
+          onToggleOrder={() => setOrder((current) => (current === 'asc' ? 'desc' : 'asc'))}
+        />
 
-        {hasFilters && (
-          <button
-            type="button"
-            onClick={clearFilters}
-            className="inline-flex items-center gap-1 text-body-strong text-sage-green hover:underline"
-          >
-            <X size={15} />
-            Limpar filtros
-          </button>
-        )}
-      </div>
+        {hasFilters && <ClearFiltersButton onClick={clearFilters} />}
+      </FilterBar>
 
       {isLoading ? (
         <SkeletonList rows={5} />
       ) : !entries || entries.length === 0 ? (
         <EmptyState
           icon={<Wallet size={26} />}
-          title={hasFilters ? 'Nenhum lançamento encontrado' : `Nenhum registro em ${title.toLowerCase()}`}
+          title={hasFilters ? 'Nada encontrado' : `Nenhum registro em ${title.toLowerCase()}`}
           description={hasFilters ? 'Ajuste os filtros ou a busca para encontrar o que procura.' : emptyDescription}
           action={
             hasFilters ? (
@@ -242,7 +245,7 @@ export function FinanceLedgerPage({
               </Button>
             ) : (
               <Button leftIcon={<Plus size={18} />} onClick={openAdd}>
-                Adicionar {meta.label.toLowerCase()}
+                {addLabel}
               </Button>
             )
           }

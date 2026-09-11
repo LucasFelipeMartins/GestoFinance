@@ -8,7 +8,7 @@ import { useToast } from '@/context/ToastContext';
 import { getApiErrorMessage } from '@/services/api';
 import { GoalProgress } from '@/types';
 import { formatCurrency, formatDate } from '@/utils/formatters';
-import { GOAL_ACCENT, GOAL_DONE } from './goalColors';
+import { GOAL_ACCENT, GOAL_DONE, GOAL_OVERDUE } from './goalColors';
 
 interface GoalDetailModalProps {
   progress: GoalProgress | null;
@@ -27,7 +27,7 @@ export function GoalDetailModal({ progress, onOpenChange, onEdit, onAddValue }: 
   }
 
   const { goal } = progress;
-  const accent = progress.isComplete ? GOAL_DONE : progress.isOverdue ? '#D93A3A' : GOAL_ACCENT;
+  const accent = progress.isComplete ? GOAL_DONE : progress.isOverdue ? GOAL_OVERDUE : GOAL_ACCENT;
 
   const handleDeleteGoal = async () => {
     try {

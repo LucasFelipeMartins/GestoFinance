@@ -32,7 +32,7 @@ export function Avatar({ name, initials, src, size = 'md', showCompletedBadge }:
         />
       ) : (
         <span
-          className="flex h-full w-full items-center justify-center rounded-full bg-tea-green font-semibold text-evergreen"
+          className="flex h-full w-full items-center justify-center rounded-full bg-tint-strong font-semibold text-brand"
           aria-hidden="true"
         >
           {initials || name.charAt(0).toUpperCase()}
@@ -41,7 +41,7 @@ export function Avatar({ name, initials, src, size = 'md', showCompletedBadge }:
       {!showImage && <span className="sr-only">{name}</span>}
       {showCompletedBadge && (
         <span
-          className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-sage-green ring-2 ring-white"
+          className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-sage-green ring-2 ring-surface"
           aria-label="Concluído"
         >
           <Check size={10} className="text-white" strokeWidth={3} />
