@@ -9,7 +9,7 @@ export interface MailMessage {
   html: string;
 }
 
-const DEFAULT_FROM_NAME = 'GestorPro';
+const DEFAULT_FROM_NAME = 'GestorFinance';
 
 function resolveFrom(): string {
   if (env.mail.from) return env.mail.from;
@@ -122,7 +122,7 @@ function layout(title: string, bodyHtml: string): string {
         <td align="center">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;">
             <tr>
-              <td style="padding:0 0 16px 0;font-size:20px;font-weight:700;color:${BRAND_DARK};">GestorPro</td>
+              <td style="padding:0 0 16px 0;font-size:20px;font-weight:700;color:${BRAND_DARK};">GestorFinance</td>
             </tr>
             <tr>
               <td style="background:#FFFFFF;border:1px solid #DDE7D9;border-radius:18px;padding:28px 28px 24px;">
@@ -132,7 +132,7 @@ function layout(title: string, bodyHtml: string): string {
             </tr>
             <tr>
               <td style="padding:16px 8px 0;font-size:12px;line-height:1.5;color:#66705F;">
-                Você recebeu esta mensagem porque este e-mail foi informado no GestorPro.
+                Você recebeu esta mensagem porque este e-mail foi informado no GestorFinance.
                 Se não foi você, pode ignorar este e-mail com segurança.
               </td>
             </tr>
@@ -149,7 +149,7 @@ export function registrationCodeEmail(input: { to: string; name: string; code: s
   const digits = input.code.split('').join(' ');
 
   const text =
-    `${firstName}, seu código de confirmação do GestorPro é: ${input.code}\n\n` +
+    `${firstName}, seu código de confirmação do GestorFinance é: ${input.code}\n\n` +
     `Digite este código na tela de criação de conta para confirmar seu e-mail. ` +
     `Ele vale por ${input.minutes} minutos.\n\n` +
     `Se você não pediu este código, ignore esta mensagem.`;
@@ -167,14 +167,14 @@ export function registrationCodeEmail(input: { to: string; name: string; code: s
      </p>`
   );
 
-  return { to: input.to, subject: `${input.code} é o seu código de confirmação — GestorPro`, text, html };
+  return { to: input.to, subject: `${input.code} é o seu código de confirmação — GestorFinance`, text, html };
 }
 
 export function passwordResetEmail(input: { to: string; name: string; link: string; minutes: number }): MailMessage {
   const firstName = input.name.trim().split(/\s+/)[0] || 'Olá';
 
   const text =
-    `${firstName}, recebemos um pedido para redefinir a senha da sua conta no GestorPro.\n\n` +
+    `${firstName}, recebemos um pedido para redefinir a senha da sua conta no GestorFinance.\n\n` +
     `Abra o link abaixo para escolher uma nova senha (vale por ${input.minutes} minutos):\n${input.link}\n\n` +
     `Se você não pediu isso, ignore esta mensagem — sua senha continua a mesma.`;
 
@@ -197,5 +197,5 @@ export function passwordResetEmail(input: { to: string; name: string; link: stri
      <p style="margin:0;font-size:12px;line-height:1.5;word-break:break-all;color:${BRAND_ACCENT};">${escapeHtml(input.link)}</p>`
   );
 
-  return { to: input.to, subject: 'Redefinir sua senha — GestorPro', text, html };
+  return { to: input.to, subject: 'Redefinir sua senha — GestorFinance', text, html };
 }

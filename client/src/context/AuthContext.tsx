@@ -8,6 +8,8 @@ import {
   RequestRegisterCodePayload,
 } from '@/services/authService';
 import { isNetworkError } from '@/services/api';
+import { billingService } from '@/services/billingService';
+import { AccessInfo } from '@/types';
 import { setToken, clearToken } from '@/utils/tokenStorage';
 import { db, clearLocalData } from '@/db';
 
@@ -25,6 +27,10 @@ interface AuthContextValue {
   /** Step 2: creates the account once the code checks out. */
   register: (payload: RegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
+  /** Re-reads the plan from the server (after a payment, for instance). */
+  refreshAccess: () => Promise<AccessInfo | undefined>;
+  /** Applies plan info the server just returned (checkout confirmation). */
+  applyAccess: (access: AccessInfo) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -102,6 +108,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(newUser);
   }, []);
 
+  const applyAccess = useCallback((access: AccessInfo) => {
+    setUser((current) => {
+      if (!current) return current;
+      const next = { ...current, access };
+      cacheUser(next);
+      return next;
+    });
+  }, []);
+
+  const refreshAccess = useCallback(async () => {
+    try {
+      const access = await billingService.status();
+      applyAccess(access);
+      return access;
+    } catch {
+      return undefined;
+    }
+  }, [applyAccess]);
+
   const logout = useCallback(async () => {
     try {
       await authService.logout();
@@ -117,8 +142,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, isLoading, isOfflineSession, login, requestRegisterCode, register, logout }),
-    [user, isLoading, isOfflineSession, login, requestRegisterCode, register, logout]
+    () => ({ user, isLoading, isOfflineSession, login, requestRegisterCode, register, logout, refreshAccess, applyAccess }),
+    [user, isLoading, isOfflineSession, login, requestRegisterCode, register, logout, refreshAccess, applyAccess]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

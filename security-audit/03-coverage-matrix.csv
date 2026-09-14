@@ -1,0 +1,77 @@
+control_id,domain,source_standard,source_requirement,applicable,asset,test_method,authorization_needed,status,evidence_reference,finding_id,limitation,reviewer_notes
+V1-01,V1 Encoding and Sanitization,ASVS 5.0,Output encoding contextual no frontend (categoria; requisito exato não verificado),sim,client React,revisão de código (grep sinks),não,CONTROLE VALIDADO,AUD-CV-10,,,"React escapa por padrão; sem dangerouslySetInnerHTML/innerHTML/eval"
+V1-02,V1 Encoding and Sanitization,ASVS 5.0,Escape em templates de e-mail,sim,server mail.ts,revisão de código,não,CONTROLE VALIDADO,AUD-CV-17,,,escapeHtml em nome/link
+V1-03,V1 Encoding and Sanitization,ASVS 5.0,Escape de metacaracteres em consultas dinâmicas (regex),sim,server controllers de listagem,teste local T05/T15,sim (conta demo local),FALHA,audit-evidence T05 T15,AUD-006,,"500 com '('; sem limite de tamanho"
+V2-01,V2 Validation and Business Logic,ASVS 5.0,Validação de esquema em toda entrada,sim,server validators (zod),revisão de código,não,CONTROLE VALIDADO,AUD-CV-07,,,"tipos estritos; strictQuery"
+V2-02,V2 Validation and Business Logic,ASVS 5.0,Campos internos não atribuíveis pelo cliente (mass assignment),sim,client.validators avatarUrl,teste local T08,sim,FALHA,audit-evidence T08,AUD-009,,
+V2-03,V2 Validation and Business Logic,ASVS 5.0,Operações financeiras atômicas/idempotentes,sim,billing.ts applyPaymentById,revisão de código,não,FALHA (PROVÁVEL),billing.ts,AUD-007,"sem credenciais do Mercado Pago para teste dinâmico",
+V2-04,V2 Validation and Business Logic,ASVS 5.0,Limites de valores numéricos,sim,validators finance/goal/client,revisão de código,não,CONTROLE VALIDADO,validators,,,"min/max presentes; sem limite superior de amount (aceitável)"
+V3-01,V3 Web Frontend Security,ASVS 5.0,Cabeçalhos de segurança no HTML (CSP frame-ancestors etc.),sim,SPA na Vercel,revisão de configuração (vercel.json),não,FALHA (PROVÁVEL),vercel.json,AUD-011,produção não observada,
+V3-02,V3 Web Frontend Security,ASVS 5.0,Cookies com HttpOnly/Secure/SameSite,sim,auth.controller setAuthCookie,teste local T03 + código,sim,CONTROLE VALIDADO,audit-evidence T03,AUD-013,"Secure só verificável em produção",
+V3-03,V3 Web Frontend Security,ASVS 5.0,Proteção CSRF em defesa em profundidade,sim,API mutações,revisão de código,não,PARCIAL,auth.controller/app.ts,AUD-013,,"apenas SameSite=Lax"
+V3-04,V3 Web Frontend Security,ASVS 5.0,Sem segredos/mapas de código no bundle,sim,client/dist,inspeção de build,não,CONTROLE VALIDADO,AUD-CV-10,,,"sem .map; só VITE_API_URL"
+V3-05,V3 Web Frontend Security,ASVS 5.0,Comportamento em logout/dispositivo compartilhado,sim,client db clearLocalData,revisão de código,não,PARCIAL,client/src/db/index.ts,AUD-018,,"dados locais persistem até logout"
+V4-01,V4 API and Web Service,ASVS 5.0,Autenticação em todos os endpoints de dados,sim,routes/index.ts,teste local T08 (anônimo 401) + código,sim,CONTROLE VALIDADO,audit-evidence T08,,,
+V4-02,V4 API and Web Service,ASVS 5.0,CORS restritivo,sim,app.ts CORS,teste local T02/T02b,não,PARCIAL,audit-evidence T02,AUD-012,,localhost sempre permitido
+V4-03,V4 API and Web Service,ASVS 5.0,Webhooks assinados e limitados,sim,/api/billing/webhook,teste local T11 + código,não,PARCIAL,audit-evidence T11,AUD-015,,segredo opcional
+V4-04,V4 API and Web Service,ASVS 5.0,Limites de tamanho de requisição,sim,express.json/multer,teste local T14,não,CONTROLE VALIDADO,audit-evidence T14,AUD-018,,"rejeita 200 kB (com 500 em vez de 413)"
+V5-01,V5 File Handling,ASVS 5.0,Validação de tipo por conteúdo e não por MIME declarado,sim,uploadAvatar.ts,revisão de código + sharp.format,não,FALHA (PROVÁVEL),AUD-002 evidência,AUD-002,exploit não executado,
+V5-02,V5 File Handling,ASVS 5.0,Arquivos reprocessados/renomeados e servidos com tipo correto,sim,utils/avatar.ts,revisão de código,não,CONTROLE VALIDADO,AUD-CV-16,,,
+V5-03,V5 File Handling,ASVS 5.0,Autorização em upload/remoção de arquivo,sim,client.controller uploadClientAvatar/deleteClient,revisão de código,não,PARCIAL,client.controller,AUD-009,,"remoção usa avatarUrl controlável"
+V5-04,V5 File Handling,ASVS 5.0,Path traversal na remoção local,sim,utils/avatar.ts deleteAvatar,revisão de código,não,CONTROLE VALIDADO,path.basename,,,
+V6-01,V6 Authentication,ASVS 5.0,Sem credenciais padrão/embutidas,sim,seed.ts + banco produção,teste local T03 (login demo) + repo público,sim,FALHA,audit-evidence T03; GitHub 200,AUD-001,,
+V6-02,V6 Authentication,ASVS 5.0,Política de senha (comprimento/blocklist),sim,auth.validators,revisão de código,não,FALHA,auth.validators.ts,AUD-014,,
+V6-03,V6 Authentication,ASVS 5.0,Hash de senha adequado,sim,utils/password.ts,revisão de código + T13,não,CONTROLE VALIDADO,AUD-CV-04,,,
+V6-04,V6 Authentication,ASVS 5.0,Anti-automação/rate limit por conta e IP real,sim,auth.routes.ts + app.ts,teste local T12,não,FALHA,audit-evidence T12,AUD-003,,
+V6-05,V6 Authentication,ASVS 5.0,Recuperação de senha segura (token aleatório uso único expiração),sim,services/verification.ts,revisão de código,não,CONTROLE VALIDADO,AUD-CV-05,,,
+V6-06,V6 Authentication,ASVS 5.0,Link de recuperação com host confiável,sim,utils/appUrl.ts,revisão de código,não,FALHA (PROVÁVEL),appUrl.ts,AUD-005,"não testado envio real",
+V6-07,V6 Authentication,ASVS 5.0,Resposta/tempo uniforme (anti-enumeração),sim,auth.controller,teste local T07/T13,não,FALHA,audit-evidence T07 T13,AUD-010,,"forgot-password uniforme (validado)"
+V6-08,V6 Authentication,ASVS 5.0,MFA para funções administrativas,sim,admin.controller,revisão de código,não,FALHA (design),admin.controller.ts,AUD-008,,
+V6-09,V6 Authentication,ASVS 5.0,Verificação de e-mail antes de criar conta,sim,auth.controller register,revisão de código + sessão anterior,não,CONTROLE VALIDADO,verification.ts,,,"código 6 dígitos 15 min 5 tentativas"
+V7-01,V7 Session Management,ASVS 5.0,Invalidação de sessão em logout/troca de senha,sim,jwt.ts/requireAuth.ts,revisão de código,não,FALHA,jwt.ts,AUD-004,,
+V7-02,V7 Session Management,ASVS 5.0,Expiração absoluta e por inatividade,sim,jwt.ts (7d),revisão de código,não,PARCIAL,jwt.ts,AUD-004,,"absoluta 7d; sem inatividade"
+V7-03,V7 Session Management,ASVS 5.0,Identificador de sessão imprevisível,sim,JWT HS256 com segredo,revisão de código,não,CONTROLE VALIDADO,jwt.ts,,,
+V8-01,V8 Authorization,ASVS 5.0,Autorização por objeto (BOLA) em leitura/escrita/exclusão,sim,controllers de dados,teste local T08 + grep userId,sim,CONTROLE VALIDADO,AUD-CV-01,,,
+V8-02,V8 Authorization,ASVS 5.0,Autorização de função (admin),sim,admin.controller,teste local T09,sim,CONTROLE VALIDADO,AUD-CV-13,,,
+V8-03,V8 Authorization,ASVS 5.0,Autorização por propriedade (campos internos),sim,validators,teste local T08,sim,FALHA,audit-evidence T08,AUD-009,,
+V8-04,V8 Authorization,ASVS 5.0,Gate de entitlement (plano) no servidor,sim,requirePlan.ts,teste local T10,sim,CONTROLE VALIDADO,AUD-CV-14,,,
+V9-01,V9 Self-contained Tokens,ASVS 5.0,Rejeição de alg none / algoritmos explícitos,sim,requireAuth.ts,teste local T04,não,PARCIAL,audit-evidence T04,AUD-004,,"none rejeitado; algorithms não restrito explicitamente"
+V9-02,V9 Self-contained Tokens,ASVS 5.0,Validação de iss/aud/exp,sim,jwt.ts,revisão de código,não,PARCIAL,jwt.ts,AUD-004,,"só exp"
+V9-03,V9 Self-contained Tokens,ASVS 5.0,Revogação de tokens,sim,jwt.ts,revisão de código,não,FALHA,jwt.ts,AUD-004,,
+V10-01,V10 OAuth and OIDC,ASVS 5.0,—,não,—,—,—,NÃO APLICÁVEL,,,,"sem SSO/OAuth"
+V11-01,V11 Cryptography,ASVS 5.0,Aleatoriedade e hashing de tokens de verificação,sim,verification.ts,revisão de código,não,CONTROLE VALIDADO,AUD-CV-05,,,"randomInt/randomBytes + HMAC-SHA256"
+V11-02,V11 Cryptography,ASVS 5.0,Segredo do JWT gerenciado por variável de ambiente e rotação,sim,env.ts,revisão de código,não,PARCIAL,env.ts,AUD-004,"rotação não verificável",
+V12-01,V12 Secure Communication,ASVS 5.0,TLS/HSTS na borda,sim,Vercel,não testado (produção excluída),sim,NÃO TESTADO,,AUD-011,produção excluída,
+V12-02,V12 Secure Communication,ASVS 5.0,TLS para o banco e SMTP,sim,MONGO_URL ssl=true; SMTP 587 STARTTLS,revisão de configuração,não,CONTROLE VALIDADO,env/.env.example,,,"senha redigida"
+V13-01,V13 Configuration,ASVS 5.0,Segredos fora do repositório,sim,git history,busca por padrões,não,CONTROLE VALIDADO,AUD-CV-09,,,
+V13-02,V13 Configuration,ASVS 5.0,trust proxy correto atrás de proxy,sim,app.ts,teste local T12,não,FALHA,audit-evidence T12,AUD-003,,
+V13-03,V13 Configuration,ASVS 5.0,Configurações obrigatórias em produção (APP_URL MP_WEBHOOK_SECRET),sim,env.ts,revisão de código,não,FALHA,env.ts,AUD-005;AUD-015,,
+V13-04,V13 Configuration,ASVS 5.0,Debug desligado em produção,sim,app.ts morgan,revisão de código,não,CONTROLE VALIDADO,app.ts,,,
+V14-01,V14 Data Protection,ASVS 5.0,Minimização de dados em respostas,sim,toPublicUser,revisão de código,não,PARCIAL,auth.controller,AUD-018,,"token no corpo para web"
+V14-02,V14 Data Protection,ASVS 5.0,Backup e restauração,sim,MongoDB Atlas,não verificável,sim,NÃO TESTADO,,AUD-018,sem acesso ao Atlas,
+V14-03,V14 Data Protection,ASVS 5.0,Dados no cliente (IndexedDB) limpos ao sair,sim,client db,revisão de código,não,CONTROLE VALIDADO,client/src/db/index.ts,,,
+V15-01,V15 Secure Coding and Architecture,ASVS 5.0,Dependências atualizadas/lockfile,sim,package-lock.json,npm audit,não,FALHA,npm audit,AUD-016;AUD-002,,
+V15-02,V15 Secure Coding and Architecture,ASVS 5.0,Tratamento de erros centralizado,sim,errorHandler.ts,teste local T06,não,CONTROLE VALIDADO,AUD-CV-08,,,
+V16-01,V16 Security Logging and Error Handling,ASVS 5.0,Log de eventos de segurança,sim,server,revisão de código,não,FALHA,app.ts/controllers,AUD-017,,
+V16-02,V16 Security Logging and Error Handling,ASVS 5.0,Erros sem vazamento,sim,errorHandler.ts,teste local T06,não,CONTROLE VALIDADO,AUD-CV-08,,,
+V17-01,V17 WebRTC,ASVS 5.0,—,não,—,—,—,NÃO APLICÁVEL,,,,
+T10-A01,OWASP Top 10:2025,A01 Broken Access Control,,sim,API,T08/T09/T10,sim,CONTROLE VALIDADO (ressalvas AUD-009 AUD-013),AUD-CV-01,AUD-009,,
+T10-A02,OWASP Top 10:2025,A02 Security Misconfiguration,,sim,Vercel/API,T01/T02/T12,não,FALHA,,AUD-003;AUD-011;AUD-012;AUD-015,,
+T10-A03,OWASP Top 10:2025,A03 Software Supply Chain Failures,,sim,dependências,npm audit + npm ls,não,FALHA,npm audit,AUD-002;AUD-016,"sem SBOM gerado",
+T10-A04,OWASP Top 10:2025,A04 Cryptographic Failures,,sim,hash/JWT/tokens,revisão de código,não,CONTROLE VALIDADO,AUD-CV-04;AUD-CV-05,,,
+T10-A05,OWASP Top 10:2025,A05 Injection,,sim,busca regex/NoSQL,T05 + código,sim,FALHA (regex),audit-evidence T05,AUD-006,,"NoSQL por objetos bloqueado (zod)"
+T10-A06,OWASP Top 10:2025,A06 Insecure Design,,sim,billing/admin,revisão de código,não,FALHA,billing.ts,AUD-007;AUD-008,,
+T10-A07,OWASP Top 10:2025,A07 Authentication Failures,,sim,auth,T03/T04/T07/T12/T13,sim,FALHA,audit-evidence,AUD-001;AUD-003;AUD-004;AUD-010;AUD-014,,
+T10-A08,OWASP Top 10:2025,A08 Software or Data Integrity Failures,,sim,build Vercel/CI,revisão (sem CI no repo),não,NÃO TESTADO,,,"pipeline da Vercel não observável",
+T10-A09,OWASP Top 10:2025,A09 Security Logging and Alerting Failures,,sim,server,revisão de código,não,FALHA,app.ts,AUD-017,,
+T10-A10,OWASP Top 10:2025,A10 Mishandling of Exceptional Conditions,,sim,errorHandler/regex,T05/T06/T14,não,PARCIAL,audit-evidence,AUD-006;AUD-018,,
+API1,OWASP API Top 10:2023,API1 BOLA,,sim,API,T08,sim,CONTROLE VALIDADO,AUD-CV-01,,,
+API2,OWASP API Top 10:2023,API2 Broken Authentication,,sim,auth,T03/T04/T12/T13,sim,FALHA,audit-evidence,AUD-001;AUD-003;AUD-004;AUD-010,,
+API3,OWASP API Top 10:2023,API3 Broken Object Property Level Authorization,,sim,client.validators,T08,sim,FALHA,audit-evidence T08,AUD-009,,
+API4,OWASP API Top 10:2023,API4 Unrestricted Resource Consumption,,sim,busca/webhook/rate limit,T05/T11/T12/T15,sim,FALHA,audit-evidence,AUD-003;AUD-006;AUD-015,,
+API5,OWASP API Top 10:2023,API5 Broken Function Level Authorization,,sim,admin,T09,sim,CONTROLE VALIDADO,AUD-CV-13,,,
+API6,OWASP API Top 10:2023,API6 Unrestricted Access to Sensitive Business Flows,,sim,billing,revisão de código,não,FALHA (PROVÁVEL),billing.ts,AUD-007,,
+API7,OWASP API Top 10:2023,API7 SSRF,,sim,mail/MP/Blob,revisão de código,não,CONTROLE VALIDADO,billing.ts/mail.ts,,,"nenhuma URL de usuário é buscada pelo servidor"
+API8,OWASP API Top 10:2023,API8 Security Misconfiguration,,sim,config,T01/T02/T12,não,FALHA,audit-evidence,AUD-003;AUD-011;AUD-012;AUD-015,,
+API9,OWASP API Top 10:2023,API9 Improper Inventory Management,,sim,rotas,inventário de rotas vs docs,não,CONTROLE VALIDADO,02-architecture,,,"sem rotas órfãs; /lucros redirecionado"
+API10,OWASP API Top 10:2023,API10 Unsafe Consumption of APIs,,sim,Mercado Pago/Resend/SMTP,revisão de código,não,PARCIAL,billing.ts,AUD-007;AUD-015,,"resposta do MP validada por status/ref; valor não validado"

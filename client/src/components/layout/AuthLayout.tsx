@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
-import { Handshake } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
+import { BrandLogo, APP_NAME } from './BrandLogo';
 
 interface AuthLayoutProps {
   title: string;
@@ -24,11 +24,9 @@ export function AuthLayout({ title, description, children, footer }: AuthLayoutP
 
       <div className="w-full max-w-md">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <span className="flex h-14 w-14 items-center justify-center rounded-[16px] bg-evergreen">
-            <Handshake size={28} className="text-tea-green" />
-          </span>
+          <BrandLogo size={56} />
           <div>
-            <h1 className="text-h1-mobile text-text-primary">GestorPro</h1>
+            <h1 className="text-h1-mobile text-text-primary">{APP_NAME}</h1>
             <p className="text-body text-text-secondary">Clientes, tarefas e finanças</p>
           </div>
         </div>

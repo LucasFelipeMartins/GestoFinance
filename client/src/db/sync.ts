@@ -60,6 +60,11 @@ function isNotFound(err: unknown): boolean {
   return axios.isAxiosError(err) && err.response?.status === 404;
 }
 
+/** The plan ran out: nothing wrong with the change itself, so it waits. */
+function isPaymentRequired(err: unknown): boolean {
+  return axios.isAxiosError(err) && err.response?.status === 402;
+}
+
 type PushOutcome = { kind: 'ok' } | { kind: 'offline' } | { kind: 'failed'; message: string };
 
 async function pushEntry(entry: OutboxEntry): Promise<PushOutcome> {
@@ -141,7 +146,7 @@ async function pushEntry(entry: OutboxEntry): Promise<PushOutcome> {
     }
     return { kind: 'ok' };
   } catch (err) {
-    if (isNetworkError(err)) return { kind: 'offline' };
+    if (isNetworkError(err) || isPaymentRequired(err)) return { kind: 'offline' };
     // 404 on update/delete just means the other side of a cascade already
     // handled it server-side (e.g. deleting a client also deletes its
     // tasks) — treat as done, not a failure.

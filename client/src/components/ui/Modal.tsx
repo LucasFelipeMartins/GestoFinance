@@ -10,6 +10,7 @@ interface ModalProps {
   children: ReactNode;
   footer?: ReactNode;
   size?: 'md' | 'lg';
+  /** Also blocks Escape (while saving, for instance). */
   preventOutsideClose?: boolean;
 }
 
@@ -29,8 +30,14 @@ export function Modal({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 animate-backdrop-in bg-overlay/50 backdrop-blur-[2px]" />
+        {/*
+         * A tap outside never closes the dialog: on a phone it is far too easy
+         * to brush the backdrop while filling in a form and lose everything.
+         * The X button (and Escape, when not saving) are the ways out.
+         */}
         <Dialog.Content
-          onPointerDownOutside={(e) => preventOutsideClose && e.preventDefault()}
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onInteractOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => preventOutsideClose && e.preventDefault()}
           className={`fixed left-1/2 top-1/2 z-50 w-[calc(100%-32px)] ${maxWidth} -translate-x-1/2 -translate-y-1/2
             max-h-[calc(100dvh-32px)] overflow-y-auto rounded-modal border border-border bg-surface p-5 shadow-elevated animate-modal-in

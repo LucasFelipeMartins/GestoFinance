@@ -1,4 +1,4 @@
-# GestorPro
+# GestorFinance
 
 Clientes, tarefas e finanças em um só lugar. Web (React + Vite) e API (Express + MongoDB), publicados juntos na Vercel.
 
@@ -74,3 +74,47 @@ APP_URL=https://seu-site.vercel.app   # endereço usado nos links dos e-mails; s
 
 Em desenvolvimento local **sem** provedor configurado, o código e o link aparecem na própria tela
 (e no console do servidor), para dar para testar o fluxo sem e-mail.
+
+## Assinatura (R$ 11,90 a cada 30 dias, 7 dias grátis)
+
+O app é vendido por assinatura pré-paga: toda conta nova ganha 7 dias grátis; depois disso a
+pessoa paga R$ 11,90 (Pix, cartão ou boleto, via **Mercado Pago Checkout Pro**) e ganha 30 dias.
+Pagando antes de vencer, os 30 dias somam ao que ainda falta. Perto do fim aparece um aviso
+em todas as telas; vencido, o app leva para a página **Assinatura** até renovar.
+
+Enquanto `MP_ACCESS_TOKEN` não estiver definido, **ninguém é bloqueado** — dá para publicar
+tudo hoje e ligar a cobrança depois.
+
+### 1. Mercado Pago
+
+1. Crie/entre na conta em <https://www.mercadopago.com.br> (funciona com CPF).
+2. Acesse <https://www.mercadopago.com.br/developers/panel/app> → **Criar aplicação** →
+   tipo "Pagamentos online" / "Checkout Pro".
+3. Em **Credenciais de produção**, copie o **Access Token** → `MP_ACCESS_TOKEN`.
+   (Para testar sem dinheiro real use as **Credenciais de teste** e as contas de teste do painel.)
+4. Em **Webhooks** (na mesma aplicação): URL `https://SEU-SITE/api/billing/webhook`, evento
+   **Pagamentos**. Copie a **assinatura secreta** → `MP_WEBHOOK_SECRET`.
+   O webhook é um reforço: ao voltar do pagamento o próprio app já confirma com o Mercado Pago,
+   então mesmo sem ele o acesso é liberado (só o boleto, que compensa depois, depende do webhook
+   ou de a pessoa abrir a página Assinatura de novo).
+
+### 2. Você e as contas gratuitas
+
+- `ADMIN_EMAILS=seuemail@gmail.com` (pode ter vários, separados por vírgula). Administradores
+  nunca pagam e ganham em **Configurações** o painel **Contas gratuitas**.
+- Nesse painel, informe o e-mail de quem não deve pagar (esposa, sócio…). Vale mesmo antes de a
+  pessoa criar a conta.
+
+### 3. Variáveis
+
+Na Vercel (Settings → Environment Variables) e no `server/.env` local:
+
+```env
+MP_ACCESS_TOKEN=APP_USR-...
+MP_WEBHOOK_SECRET=...
+ADMIN_EMAILS=seuemail@gmail.com
+# opcionais: PLAN_PRICE_BRL=11.90  PLAN_PERIOD_DAYS=30  TRIAL_DAYS=7
+```
+
+Depois faça **Redeploy**. Contas já existentes ganham os 7 dias grátis a partir do primeiro
+acesso após a ativação.

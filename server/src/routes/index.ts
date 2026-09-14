@@ -4,14 +4,22 @@ import clientRoutes from './client.routes';
 import taskRoutes from './task.routes';
 import financeRoutes from './finance.routes';
 import goalRoutes from './goal.routes';
+import billingRoutes from './billing.routes';
+import adminRoutes from './admin.routes';
 import { requireAuth } from '../middleware/requireAuth';
+import { requirePlan } from '../middleware/requirePlan';
 
 const router = Router();
 
 router.use('/auth', authRoutes);
-router.use('/clients', requireAuth, clientRoutes);
-router.use('/tasks', requireAuth, taskRoutes);
-router.use('/finance', requireAuth, financeRoutes);
-router.use('/goals', requireAuth, goalRoutes);
+router.use('/billing', billingRoutes);
+router.use('/admin', adminRoutes);
+
+// Everything that holds the person's data needs a live plan (trial, paid,
+// or exempt) besides a session.
+router.use('/clients', requireAuth, requirePlan, clientRoutes);
+router.use('/tasks', requireAuth, requirePlan, taskRoutes);
+router.use('/finance', requireAuth, requirePlan, financeRoutes);
+router.use('/goals', requireAuth, requirePlan, goalRoutes);
 
 export default router;

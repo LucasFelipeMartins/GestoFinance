@@ -9,8 +9,10 @@ import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useLogoutConfirm } from '@/hooks/useLogoutConfirm';
 import { SyncIndicator } from '@/components/layout/SyncIndicator';
-import { DownloadAppCard } from '@/components/settings/DownloadAppCard';
+import { InstallAppCard } from '@/components/settings/InstallAppCard';
 import { ChangePasswordCard } from '@/components/settings/ChangePasswordCard';
+import { PlanCard } from '@/components/settings/PlanCard';
+import { FreeAccountsCard } from '@/components/settings/FreeAccountsCard';
 
 export default function Settings() {
   const { user } = useAuth();
@@ -21,7 +23,7 @@ export default function Settings() {
 
   return (
     <PageContainer>
-      <PageHeader title="Configurações" subtitle="Sua conta, sua senha e a aparência do app." />
+      <PageHeader title="Configurações" subtitle="Sua conta, seu plano, sua senha e a aparência do app." />
 
       <Card className="mx-auto w-full max-w-lg">
         <div className="flex items-center gap-4">
@@ -66,6 +68,10 @@ export default function Settings() {
         </Button>
       </Card>
 
+      <PlanCard />
+
+      {user.access?.isAdmin && <FreeAccountsCard />}
+
       <ChangePasswordCard />
 
       <Card className="mx-auto w-full max-w-lg">
@@ -90,7 +96,7 @@ export default function Settings() {
         </div>
       </Card>
 
-      <DownloadAppCard />
+      <InstallAppCard />
       {dialog}
     </PageContainer>
   );

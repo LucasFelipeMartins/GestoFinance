@@ -39,3 +39,9 @@ export function getApiFieldErrors(error: unknown): Record<string, string> | unde
 export function isNetworkError(error: unknown): boolean {
   return axios.isAxiosError(error) && !error.response;
 }
+
+/** 402 from the API: the plan ran out. The sync engine must not treat it as
+ * a broken request and throw the queued change away. */
+export function isPaymentRequired(error: unknown): boolean {
+  return axios.isAxiosError(error) && error.response?.status === 402;
+}

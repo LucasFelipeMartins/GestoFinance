@@ -16,11 +16,32 @@ export const STATUS_OPTIONS: { value: EntityStatus; label: string }[] = [
   { value: 'completed', label: 'Concluído' },
 ];
 
+/** Why (and until when) the account may use the app. Mirrors the server's
+ * AccessInfo in services/billing.ts. */
+export type AccessReason = 'admin' | 'free' | 'paid' | 'trial' | 'expired';
+
+export interface AccessInfo {
+  allowed: boolean;
+  reason: AccessReason;
+  isAdmin: boolean;
+  /** Whole days of access left (trial or paid); 0 when expired or unlimited. */
+  daysLeft: number;
+  trialEndsAt?: string;
+  paidUntil?: string;
+  accessEndsAt?: string;
+  priceMonthly: number;
+  periodDays: number;
+  trialDays: number;
+  billingEnabled: boolean;
+}
+
 export interface User {
   id: string;
   name: string;
   email: string;
   avatarUrl?: string;
+  /** Absent only for sessions cached before billing existed. */
+  access?: AccessInfo;
 }
 
 /**

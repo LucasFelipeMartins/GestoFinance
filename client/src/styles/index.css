@@ -135,6 +135,15 @@
 
   html {
     -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Nothing may ever widen the page: iOS Safari otherwise lets the whole
+     layout drift sideways. `clip` keeps sticky/fixed elements working. */
+  html,
+  body {
+    overflow-x: clip;
+    max-width: 100%;
   }
 
   body {

@@ -1,0 +1,62 @@
+
+### T01 security headers on API (helmet)
+Content-Security-Policy: default-src 'self';base-uri 'self';font-src 'self' https: data:;form-action 'self';frame-ancestors 'self';img-src 'self' data:;object-src 'none';script-src 'self';script-src-attr 'none';style-src 'self' https: 'unsafe-inline';upgrade-insecure-requests
+Cross-Origin-Opener-Policy: same-origin
+Referrer-Policy: no-referrer
+Strict-Transport-Security: max-age=15552000; includeSubDomains
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+
+### T02 CORS: foreign origin (expect no ACAO)
+
+### T02b CORS: http://localhost origin always allowed with credentials
+Access-Control-Allow-Origin: http://localhost
+Access-Control-Allow-Credentials: true
+
+### T03 login sets cookie (flags)
+Set-Cookie: token=[REDACTED]; Max-Age=604800; Path=/; Expires=Mon, 21 Sep 2026 00:25:56 GMT; HttpOnly; SameSite=Lax
+
+### T04 JWT alg=none rejected?
+status: 401
+
+### T05 regex injection in search (expect 500 if unescaped)
+search='(' -> 500
+search='.*' matches everything of own user -> 4 clients
+
+### T06 unknown route / malformed JSON (error leakage)
+unknown: {"message":"Rota não encontrada."}
+malformed: {"message":"Corpo da requisição inválido."}
+
+### T07 user enumeration via register/request-code (existing e-mail, no mail sent)
+{"message":"Este e-mail já está cadastrado. Entre com sua senha ou use \"Esqueci minha senha\"."}
+
+### T08 BOLA / mass assignment with canary user
+demo creates canary client: 201
+canary user GET demo's client -> 404
+canary user PUT demo's client -> 404
+canary user DELETE demo's client -> 404
+canary user list clients count -> 0
+anonymous GET client -> 401
+demo sets avatarUrl to external URL (mass assignment) -> stored avatarUrl = https://attacker.example/track.png
+demo deletes canary client -> 204
+
+### T09 admin endpoint as normal user
+status: 403
+
+### T10 plan gate (canary expired -> 402)
+(expire canary, then) clients -> 200 (run after expire step)
+
+### T11 webhook without signature secret accepts any body?
+status: 200
+
+### T12 rate limiter keyed by req.ip (X-Forwarded-For ignored: trust proxy off)
+22 failed logins, each with a DIFFERENT X-Forwarded-For: 401 401 401 401 401 401 401 401 401 401 401 401 401 401 401 401 401 401 429 429 429 429
+(429 appearing means all were counted in ONE bucket -> behind a proxy every visitor shares the same limit)
+T10 canary (expired) GET /clients -> 402
+T10b canary (expired) GET /billing/status -> False expired
+### T13 timing difference: unknown e-mail vs existing e-mail with wrong password (ms)
+unknown=0.108209  existing=0.359680
+unknown=0.017486  existing=0.286373
+unknown=0.018846  existing=0.285995
+### T14 express.json body limit (default 100kb) -> 500
+### T15 search length: 5000-char regex accepted? -> 200

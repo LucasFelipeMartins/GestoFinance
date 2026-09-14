@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Bell, ChevronDown, Settings, LogOut } from 'lucide-react';
+import { Bell, ChevronDown, Settings, LogOut, CreditCard } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -69,6 +69,13 @@ export function Header() {
               >
                 <Settings size={17} />
                 Configurações
+              </DropdownMenu.Item>
+              <DropdownMenu.Item
+                onSelect={() => navigate('/assinatura')}
+                className="flex cursor-pointer items-center gap-2.5 rounded-md px-3 py-2.5 text-body text-text-primary outline-none data-[highlighted]:bg-tint"
+              >
+                <CreditCard size={17} />
+                Meu plano
               </DropdownMenu.Item>
               <DropdownMenu.Separator className="my-1 h-px bg-border" />
               <DropdownMenu.Item

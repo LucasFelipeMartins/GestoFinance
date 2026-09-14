@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { User } from '../models/User';
+import { User, UserDocument } from '../models/User';
 import { hashPassword, comparePassword } from '../utils/password';
 import { signToken } from '../utils/jwt';
 import { asyncHandler } from '../utils/asyncHandler';
@@ -13,7 +13,10 @@ import {
   changePasswordSchema,
 } from '../validators/auth.validators';
 import { env, mailProvider } from '../config/env';
+import { resolveAppUrl } from '../utils/appUrl';
 import { sendMail, registrationCodeEmail, passwordResetEmail } from '../services/mail';
+import { computeAccess, ensureTrial } from '../services/billing';
+import { billingEnv } from '../config/env';
 import {
   issueRegistrationCode,
   consumeRegistrationCode,
@@ -44,31 +47,10 @@ function toPublicUser(user: { _id: unknown; name: string; email: string; avatarU
   };
 }
 
-/**
- * Where the web app lives, for links inside e-mails. APP_URL wins when set;
- * otherwise the request itself tells us — the SPA and the API are the same
- * Vercel deployment, so the Origin (or Host, for the native app whose origin
- * is a fake localhost) is exactly the address the user should open.
- */
-function resolveAppUrl(req: Request): string {
-  if (env.appUrl) return env.appUrl;
-
-  const origin = req.headers.origin;
-  const host = req.headers.host ?? 'localhost';
-  const isLocalOrigin = !origin || /^(https?|capacitor):\/\/localhost(:\d+)?$/.test(origin);
-  const sameOrigin = origin === `https://${host}` || origin === `http://${host}`;
-
-  if (origin && !isLocalOrigin && (sameOrigin || env.clientOrigins.includes(origin))) {
-    return origin;
-  }
-  if (!env.isProduction && origin) {
-    // Vite dev server proxying /api — the browser's origin is the app.
-    return origin;
-  }
-
-  const forwardedProto = (req.headers['x-forwarded-proto'] as string | undefined)?.split(',')[0]?.trim();
-  const proto = forwardedProto ?? req.protocol ?? 'https';
-  return `${proto}://${host}`;
+/** The public user plus what the client needs to gate the app on the plan. */
+async function toSessionUser(user: UserDocument) {
+  await ensureTrial(user);
+  return { ...toPublicUser(user), access: await computeAccess(user) };
 }
 
 /* ------------------------------------------------------------------ */
@@ -114,6 +96,7 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     email: data.email,
     passwordHash,
     emailVerifiedAt: new Date(),
+    trialEndsAt: new Date(Date.now() + billingEnv.trialDays * 24 * 60 * 60 * 1000),
   });
 
   const token = signToken({ userId: String(user._id) });
@@ -121,7 +104,7 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
 
   // The cookie is what web relies on; `token` is for the native app, which
   // stores it itself and sends it back as an Authorization: Bearer header.
-  res.status(201).json({ user: toPublicUser(user), token });
+  res.status(201).json({ user: await toSessionUser(user), token });
 });
 
 /* ------------------------------------------------------------------ */
@@ -144,7 +127,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   const token = signToken({ userId: String(user._id) });
   setAuthCookie(res, token);
 
-  res.json({ user: toPublicUser(user), token });
+  res.json({ user: await toSessionUser(user), token });
 });
 
 export const logout = asyncHandler(async (_req: Request, res: Response) => {
@@ -157,7 +140,7 @@ export const me = asyncHandler(async (req: Request, res: Response) => {
   if (!user) {
     throw ApiError.unauthorized();
   }
-  res.json({ user: toPublicUser(user) });
+  res.json({ user: await toSessionUser(user) });
 });
 
 /* ------------------------------------------------------------------ */

@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { MobileBottomNav } from './MobileBottomNav';
+import { PlanGate } from './PlanGate';
 import { useTasks, useSetTaskReminder } from '@/hooks/useTasks';
 import { reconcileReminders } from '@/services/notifications';
 
@@ -27,9 +28,11 @@ export function AppLayout() {
       <Sidebar />
       <div className="lg:pl-[250px]">
         <Header />
-        <main>
-          <Outlet />
-        </main>
+        <PlanGate>
+          <main>
+            <Outlet />
+          </main>
+        </PlanGate>
       </div>
       <MobileBottomNav />
     </div>

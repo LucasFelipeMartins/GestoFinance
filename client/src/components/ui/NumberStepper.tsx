@@ -90,7 +90,7 @@ export function NumberStepper({
               set(Number(digits));
             }}
             onFocus={(event) => event.target.select()}
-            className={`h-full bg-transparent text-body-strong tabular-nums text-text-primary outline-none disabled:cursor-not-allowed ${
+            className={`h-full bg-transparent text-[16px] font-semibold tabular-nums text-text-primary outline-none disabled:cursor-not-allowed sm:text-body-strong ${
               suffix ? 'w-[3.5ch] text-right' : 'w-full text-center'
             }`}
           />

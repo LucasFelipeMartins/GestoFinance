@@ -24,6 +24,13 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     return;
   }
 
+  // body-parser: the request body wasn't valid JSON — the client's fault,
+  // not ours.
+  if (err && typeof err === 'object' && (err as { type?: string }).type === 'entity.parse.failed') {
+    res.status(400).json({ message: 'Corpo da requisição inválido.' });
+    return;
+  }
+
   if (err instanceof ZodError) {
     const fields: Record<string, string> = {};
     for (const issue of err.issues) {

@@ -12,6 +12,14 @@ export interface UserDocument extends Document {
    * value here and are treated exactly as before (login never checks it).
    */
   emailVerifiedAt?: Date;
+  /** End of the free trial. Set at sign-up; older accounts get one on their
+   * first request after billing went live (see ensureTrial). */
+  trialEndsAt?: Date;
+  /** Access is paid up to this instant. Each approved payment pushes it
+   * forward by one period, starting from whichever is later: now, the
+   * previous paidUntil or the trial end — nobody loses days by paying early. */
+  paidUntil?: Date;
+  lastPaymentAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,6 +31,9 @@ const userSchema = new Schema<UserDocument>(
     passwordHash: { type: String, required: true },
     avatarUrl: { type: String },
     emailVerifiedAt: { type: Date },
+    trialEndsAt: { type: Date },
+    paidUntil: { type: Date },
+    lastPaymentAt: { type: Date },
   },
   { timestamps: true }
 );

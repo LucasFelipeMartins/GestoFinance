@@ -90,7 +90,7 @@ export default function Register() {
     setServerError(undefined);
     try {
       await registerUser({ name: details.name, email: details.email, password: details.password, code: value });
-      toast.success('Conta criada! Bem-vindo ao GestorPro.');
+      toast.success('Conta criada! Bem-vindo ao GestorFinance.');
       navigate('/', { replace: true });
     } catch (error) {
       const fields = getApiFieldErrors(error);

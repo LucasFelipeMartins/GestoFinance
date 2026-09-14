@@ -65,6 +65,24 @@ export const env = {
   },
 };
 
+export const billingEnv = {
+  /** Mercado Pago "Access Token" (Produção ou Teste) from the developer panel. */
+  mpAccessToken: optional('MP_ACCESS_TOKEN'),
+  /** Optional: the webhook "Assinatura secreta" shown in the Mercado Pago panel. */
+  mpWebhookSecret: optional('MP_WEBHOOK_SECRET'),
+  /** What one period costs, in BRL. */
+  priceMonthly: Number(process.env.PLAN_PRICE_BRL ?? 11.9),
+  /** Days of access each payment buys. */
+  periodDays: Number(process.env.PLAN_PERIOD_DAYS ?? 30),
+  /** Free days every new account starts with. */
+  trialDays: Number(process.env.TRIAL_DAYS ?? 7),
+  /** Comma-separated. Admins never pay and can grant free access to others. */
+  adminEmails: (process.env.ADMIN_EMAILS ?? '')
+    .split(',')
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean),
+};
+
 export type MailProvider = 'resend' | 'smtp' | 'console' | 'none';
 
 /** Which channel sendMail will actually use with the current env. */

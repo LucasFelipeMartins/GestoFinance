@@ -15,6 +15,7 @@ import {
   Settings,
   Wallet,
   Flag,
+  CreditCard,
 } from 'lucide-react';
 import { FINANCE_META } from '@/utils/financeMeta';
 
@@ -47,6 +48,7 @@ const MORE_LINKS = [
   { path: '/despesas', label: 'Despesas', icon: Receipt, color: FINANCE_META.expense.color },
   { path: '/investimentos', label: 'Investimentos', icon: PiggyBank, color: FINANCE_META.investment.color },
   { path: '/metas', label: 'Metas', icon: Flag, color: BRAND },
+  { path: '/assinatura', label: 'Assinatura', icon: CreditCard, color: BRAND },
   { path: '/configuracoes', label: 'Configurações', icon: Settings, color: BRAND },
 ];
 

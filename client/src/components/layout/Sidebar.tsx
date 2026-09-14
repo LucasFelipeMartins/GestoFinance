@@ -5,7 +5,7 @@ import {
   CheckSquare,
   Settings,
   LogOut,
-  Handshake,
+  CreditCard,
   Flag,
   TrendingUp,
   Receipt,
@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { useLogoutConfirm } from '@/hooks/useLogoutConfirm';
 import { SyncIndicator } from './SyncIndicator';
-import { DownloadAppButton } from './DownloadAppButton';
+import { BrandLogo, APP_NAME } from './BrandLogo';
 
 /**
  * Two sections rather than one flat list: with seven destinations, grouping
@@ -53,11 +53,9 @@ export function Sidebar() {
   return (
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-[250px] flex-col overflow-y-auto border-r border-white/5 bg-sidebar px-4 py-6 text-white lg:flex">
       <div className="mb-7 flex items-center gap-3 px-2">
-        <span className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-white/10">
-          <Handshake size={22} className="text-tea-green" />
-        </span>
+        <BrandLogo size={40} />
         <div>
-          <p className="text-h3 leading-tight text-white">GestorPro</p>
+          <p className="text-h3 leading-tight text-white">{APP_NAME}</p>
           <p className="text-caption text-white/60">Seu negócio em dia</p>
         </div>
       </div>
@@ -83,6 +81,10 @@ export function Sidebar() {
       </nav>
 
       <div className="mt-auto flex flex-col gap-1 border-t border-white/10 pt-4">
+        <NavLink to="/assinatura" className={linkClass}>
+          <CreditCard size={19} aria-hidden="true" />
+          Assinatura
+        </NavLink>
         <NavLink to="/configuracoes" className={linkClass}>
           <Settings size={19} aria-hidden="true" />
           Configurações
@@ -95,10 +97,6 @@ export function Sidebar() {
           <LogOut size={19} aria-hidden="true" />
           Sair
         </button>
-
-        <div className="mt-3 border-t border-white/10 pt-3">
-          <DownloadAppButton />
-        </div>
       </div>
       {dialog}
     </aside>

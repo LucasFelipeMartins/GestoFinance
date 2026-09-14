@@ -4,7 +4,7 @@ import { InputHTMLAttributes, ReactNode, TextareaHTMLAttributes, forwardRef, use
  * SearchInput, Select trigger) so they all line up at the same height and
  * radius wherever they sit side by side. */
 export const FIELD_CLASS =
-  'h-11 w-full rounded-input border bg-surface px-4 text-body text-text-primary ' +
+  'h-11 w-full rounded-input border bg-surface px-4 text-[16px] text-text-primary sm:text-body ' +
   'placeholder:text-text-secondary/70 transition-colors duration-200 ' +
   'focus:border-sage-green focus:outline-none ' +
   'disabled:cursor-not-allowed disabled:bg-bg-app disabled:text-text-secondary';
@@ -101,7 +101,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
         id={inputId}
         aria-invalid={Boolean(error)}
         aria-describedby={error ? errorId : undefined}
-        className={`min-h-[96px] w-full resize-none rounded-input border bg-surface px-4 py-3 text-body text-text-primary
+        className={`min-h-[96px] w-full resize-none rounded-input border bg-surface px-4 py-3 text-[16px] text-text-primary sm:text-body
           placeholder:text-text-secondary/70 transition-colors duration-200
           focus:border-sage-green focus:outline-none
           disabled:cursor-not-allowed disabled:bg-bg-app disabled:text-text-secondary

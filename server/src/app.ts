@@ -8,6 +8,7 @@ import { connectDatabase } from './config/db';
 import routes from './routes';
 import { notFoundHandler, errorHandler } from './middleware/errorHandler';
 import { asyncHandler } from './utils/asyncHandler';
+import { webhook as billingWebhook } from './controllers/billing.controller';
 
 const app = express();
 
@@ -39,6 +40,21 @@ app.use((req, res, next) => {
 });
 
 app.use(cookieParser());
+
+// Mercado Pago's notification. It arrives with any content type (sometimes
+// none), so it gets its own lenient JSON parser; the signature covers headers
+// and the query string, never the body. It needs the database like
+// everything else, so the connection guard is applied here too.
+app.post(
+  '/api/billing/webhook',
+  express.json({ type: () => true }),
+  asyncHandler(async (_req, _res, next) => {
+    await connectDatabase();
+    next();
+  }),
+  billingWebhook
+);
+
 app.use(express.json());
 if (!env.isProduction) {
   app.use(morgan('dev'));

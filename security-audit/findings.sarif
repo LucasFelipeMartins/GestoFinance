@@ -1,0 +1,807 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Auditoria manual GestorFinance",
+          "version": "1.0",
+          "rules": [
+            {
+              "id": "AUD-001",
+              "name": "AUD001",
+              "shortDescription": {
+                "text": "Conta de demonstração com senha pública no repositório e ativa no banco de produção"
+              },
+              "fullDescription": {
+                "text": "Autenticação existe para provar quem está pedindo. Uma senha que qualquer pessoa pode ler no GitHub não prova nada: qualquer visitante vira usuário autenticado do sistema real sem criar conta, sem confirmar e-mail e sem passar pela assinatura. Toda proteção que exige 'estar logado' (upload de imagem, buscas, criação de registros) deixa de ser barreira para quem usa essa conta."
+              },
+              "help": {
+                "text": "1) Apagar o usuário demo do banco de produção (ou trocar a senha para uma gerada e não publicada). 2) Em seed.ts, recusar execução quando NODE_ENV=production e gerar senha aleatória impressa apenas no console. 3) Avaliar tornar o repositório privado ou, se ficar público, garantir que nada nele funcione em produção. 4) Considerar exigir troca de senha no primeiro login para contas provisionadas."
+              },
+              "properties": {
+                "severity": "ALTA",
+                "status": "CONFIRMADO",
+                "cwe": [
+                  "CWE-798 Uso de credenciais embutidas",
+                  "CWE-1392 Credenciais padrão"
+                ],
+                "cvss": {
+                  "score": 7.1,
+                  "vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:L/VI:L/VA:N/SC:N/SI:N/SA:N"
+                }
+              }
+            },
+            {
+              "id": "AUD-002",
+              "name": "AUD002",
+              "shortDescription": {
+                "text": "Upload de avatar alcança decodificadores de imagem vulneráveis (sharp/libheif) e multer com falhas de DoS"
+              },
+              "fullDescription": {
+                "text": "Um arquivo que se declara `image/png` mas contém um HEIF malicioso passa pelo filtro e chega ao decodificador vulnerável. Em uma função serverless, uma falha de memória derruba a execução (negação de serviço) e, em cenários de heap overflow, pode permitir execução de código no ambiente que guarda MONGO_URL, JWT_SECRET e o token do Mercado Pago. O multer, por sua vez, pode ser travado com nomes de campo especialmente montados antes mesmo de a imagem ser processada."
+              },
+              "help": {
+                "text": "1) `npm install sharp@^0.35.4 multer@latest -w server` e reexecutar `npm audit`. 2) Antes de processar, conferir o formato real: `const meta = await sharp(buffer, { limitInputPixels: 24_000_000 }).metadata(); if (!['jpeg','png','webp'].includes(meta.format)) rejeitar`. 3) Manter `limits.fileSize`, adicionar `limits.fields/parts` no multer. 4) Executar `npm audit` no pipeline de deploy (Vercel Build) e falhar em vulnerabilidades altas alcançáveis."
+              },
+              "properties": {
+                "severity": "ALTA",
+                "status": "PROVÁVEL",
+                "cwe": [
+                  "CWE-1395 Dependência com vulnerabilidade conhecida",
+                  "CWE-122 Heap overflow (libheif)",
+                  "CWE-400 Consumo descontrolado de recursos (multer)"
+                ],
+                "cvss": {
+                  "score": 7.5,
+                  "vector": "CVSS:4.0/AV:N/AC:L/AT:P/PR:L/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:N"
+                }
+              }
+            },
+            {
+              "id": "AUD-003",
+              "name": "AUD003",
+              "shortDescription": {
+                "text": "Limite de tentativas de login inoperante atrás do proxy: todos os visitantes compartilham um único contador e cada instância serverless tem o seu"
+              },
+              "fullDescription": {
+                "text": "Dois efeitos opostos e ambos ruins: (1) um atacante que acerta uma instância nova ou espera o reinício tem 20 tentativas por instância, e como a Vercel abre várias instâncias em paralelo o limite real é multiplicado; (2) 20 erros de senha de quaisquer pessoas no mundo bloqueiam o login de todos os clientes daquela instância por 15 minutos — um usuário mal-intencionado pode negar o login a todo mundo com 20 requisições. O mesmo vale para o envio de códigos de cadastro (6/15min), que passa a ser um limite global: bastam 6 cadastros legítimos para o 7º ser recusado."
+              },
+              "help": {
+                "text": "1) `app.set('trust proxy', 1)` (Vercel coloca o IP real em X-Forwarded-For) e validar `req.ip` no log. 2) Store compartilhado: `rate-limit-mongo` ou coleção própria com TTL, já que o projeto tem Mongo. 3) Limite adicional por conta (e-mail) em login e request-code, com backoff exponencial e alerta ao titular após N falhas. 4) Devolver `Retry-After`. 5) Considerar desafio (CAPTCHA) apenas após falhas repetidas por conta."
+              },
+              "properties": {
+                "severity": "MÉDIA",
+                "status": "CONFIRMADO",
+                "cwe": [
+                  "CWE-307 Restrição inadequada de tentativas de autenticação",
+                  "CWE-348 Uso de fonte menos confiável para o IP"
+                ],
+                "cvss": {
+                  "score": 6.3,
+                  "vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:L/VI:N/VA:L/SC:N/SI:N/SA:N"
+                }
+              }
+            },
+            {
+              "id": "AUD-004",
+              "name": "AUD004",
+              "shortDescription": {
+                "text": "Sessões (JWT de 7 dias) não podem ser revogadas: trocar/redefinir a senha ou sair não invalida tokens já emitidos"
+              },
+              "fullDescription": {
+                "text": "O cenário-alvo de 'esqueci minha senha' é justamente quando a pessoa suspeita que outra pessoa está usando sua conta. Aqui, após redefinir a senha, o invasor com o token antigo (cookie roubado, dispositivo compartilhado, app no celular perdido) continua dentro por até 7 dias. Como o token está em cookie HttpOnly no web, o roubo exige acesso ao dispositivo ou ao tráfego, o que limita — mas não elimina — o risco."
+              },
+              "help": {
+                "text": "1) Adicionar `sessionVersion` (ou `passwordChangedAt`) ao usuário, incluir no payload do JWT e rejeitar em requireAuth quando divergir; incrementar em reset/troca de senha e em 'sair de todos os dispositivos'. 2) Reduzir a validade para ~1h com renovação silenciosa via refresh token rotativo em cookie, ou manter 7d absoluto + 24h de inatividade. 3) Registrar `iss`/`aud` e validar em `jwt.verify` com `algorithms: ['HS256']`. 4) Ao rotacionar JWT_SECRET, aceitar a chave antiga por um curto período ou forçar novo login com aviso."
+              },
+              "properties": {
+                "severity": "MÉDIA",
+                "status": "CONFIRMADO",
+                "cwe": [
+                  "CWE-613 Expiração de sessão insuficiente",
+                  "CWE-287"
+                ],
+                "cvss": {
+                  "score": 5.9,
+                  "vector": "CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:N/VC:L/VI:L/VA:N/SC:N/SI:N/SA:N"
+                }
+              }
+            },
+            {
+              "id": "AUD-005",
+              "name": "AUD005",
+              "shortDescription": {
+                "text": "Link de redefinição de senha montado a partir dos cabeçalhos Origin/Host da requisição (envenenamento de link)"
+              },
+              "fullDescription": {
+                "text": "'Envenenamento de link de reset' é quando o atacante pede a redefinição em nome da vítima, mas com um cabeçalho Host/Origin apontando para um domínio dele; o e-mail legítimo chega à vítima com um link para o site do atacante contendo o token; ao clicar, o token é entregue ao atacante, que redefine a senha. A defesa correta é ignorar cabeçalhos e usar APP_URL."
+              },
+              "help": {
+                "text": "1) Definir APP_URL em produção e tornar obrigatório quando NODE_ENV=production (falhar no boot se ausente). 2) Remover o ramo que aceita `origin` genérico; manter apenas allowlist estrita (CLIENT_ORIGIN) e nunca o Host. 3) Manter o token de reset fora de logs (já em query, considerar POST ou `history.replaceState` na página)."
+              },
+              "properties": {
+                "severity": "MÉDIA",
+                "status": "PROVÁVEL",
+                "cwe": [
+                  "CWE-640 Mecanismo fraco de recuperação de senha",
+                  "CWE-20"
+                ],
+                "cvss": {
+                  "score": 5.3,
+                  "vector": "CVSS:4.0/AV:N/AC:H/AT:P/PR:N/UI:P/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N"
+                }
+              }
+            },
+            {
+              "id": "AUD-006",
+              "name": "AUD006",
+              "shortDescription": {
+                "text": "Texto de busca vira expressão regular sem escape nem limite (erro 500 e risco de lentidão no banco)"
+              },
+              "fullDescription": {
+                "text": "Uma regex com repetições aninhadas pode obrigar o banco a testar bilhões de combinações por documento ('ReDoS'); como a consulta roda no cluster Atlas compartilhado por todos os usuários, um único cliente autenticado pode degradar o serviço para os demais. O erro 500 mostra falta de validação e polui os logs."
+              },
+              "help": {
+                "text": "1) Escapar: `const safe = search.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')` antes de `new RegExp`. 2) `search: z.string().trim().max(100)`. 3) Preferir `$regex` com prefixo/índice ou Atlas Search para bases maiores. 4) Mapear `SyntaxError` para 400."
+              },
+              "properties": {
+                "severity": "MÉDIA",
+                "status": "CONFIRMADO",
+                "cwe": [
+                  "CWE-1333 Complexidade ineficiente de regex (ReDoS)",
+                  "CWE-20 Validação de entrada imprópria"
+                ],
+                "cvss": {
+                  "score": 5.3,
+                  "vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:L/UI:N/VC:N/VI:N/VA:L/SC:N/SI:N/SA:N"
+                }
+              }
+            },
+            {
+              "id": "AUD-007",
+              "name": "AUD007",
+              "shortDescription": {
+                "text": "Aplicação de pagamento não é atômica (pode creditar 30 dias duas vezes) e não valida valor/moeda nem estornos"
+              },
+              "fullDescription": {
+                "text": "'Race condition' é quando duas execuções simultâneas leem o mesmo estado antes que qualquer uma o altere. Aqui o usuário controla o momento de chamar /billing/confirm e o Mercado Pago o momento do webhook; disparando ambos ao mesmo tempo (ou dois confirms em paralelo), um pagamento de R$ 11,90 pode virar 60 dias. Estornos não reduzirem o acesso significa que um cartão contestado mantém o serviço ativo."
+              },
+              "help": {
+                "text": "1) Aplicar de forma atômica: `Payment.findOneAndUpdate({ providerPaymentId, appliedAt: null, status: 'approved' }, { $set: { appliedAt: now } })` e só creditar se o documento retornado existir. 2) Validar `payment.transaction_amount >= priceMonthly` e `currency_id === 'BRL'`; registrar divergências. 3) Tratar `refunded`, `charged_back` e `cancelled` após aplicado: reduzir `paidUntil` pelo período creditado. 4) Rate limit em /billing/confirm e /billing/webhook."
+              },
+              "properties": {
+                "severity": "MÉDIA",
+                "status": "PROVÁVEL",
+                "cwe": [
+                  "CWE-362 Condição de corrida (TOCTOU)",
+                  "CWE-841 Aplicação imprópria de fluxo de negócio"
+                ],
+                "cvss": {
+                  "score": 4.8,
+                  "vector": "CVSS:4.0/AV:N/AC:H/AT:P/PR:L/UI:N/VC:N/VI:L/VA:N/SC:N/SI:L/SA:N"
+                }
+              }
+            },
+            {
+              "id": "AUD-008",
+              "name": "AUD008",
+              "shortDescription": {
+                "text": "Administrador protegido apenas por senha (sem MFA) e sem trilha de auditoria"
+              },
+              "fullDescription": {
+                "text": "A conta administrativa é o 'cofre' do sistema: com ela, um invasor libera contas gratuitas indefinidamente (perda de receita) e, se o e-mail admin for descoberto (é o e-mail pessoal do dono), phishing ou reutilização de senha vazada bastam. Sem trilha, um abuso não é detectado nem reconstruído."
+              },
+              "help": {
+                "text": "1) Exigir MFA (TOTP ou WebAuthn) para contas em ADMIN_EMAILS — ao menos step-up na primeira ação admin da sessão. 2) Registrar cada ação admin em coleção `AuditLog` (ator, alvo, ação, IP, data) e enviar e-mail ao próprio admin. 3) Reautenticação (senha) antes de adicionar/remover contas gratuitas. 4) Senha do admin com ≥12 caracteres e verificação contra senhas vazadas."
+              },
+              "properties": {
+                "severity": "MÉDIA",
+                "status": "HIPÓTESE",
+                "cwe": [
+                  "CWE-308 Uso de autenticação de fator único",
+                  "CWE-778 Registro insuficiente"
+                ],
+                "cvss": {
+                  "score": 5.1,
+                  "vector": "CVSS:4.0/AV:N/AC:H/AT:P/PR:N/UI:N/VC:L/VI:L/VA:N/SC:L/SI:L/SA:N"
+                }
+              }
+            },
+            {
+              "id": "AUD-009",
+              "name": "AUD009",
+              "shortDescription": {
+                "text": "Campo avatarUrl aceito do cliente (mass assignment): URL arbitrária armazenada e usada na remoção de arquivos"
+              },
+              "fullDescription": {
+                "text": "Aceitar o campo permite (a) apontar a foto para um servidor externo, que passa a receber o IP e o horário de cada visualização (rastreamento) e (b) pedir ao servidor que apague um arquivo cuja URL o atacante conheça, usando privilégio que o atacante não tem. Também permite armazenar strings sem limite (não há `max`)."
+              },
+              "help": {
+                "text": "1) Remover `avatarUrl` dos schemas de create/update (ou aceitar apenas se igual ao valor atual). 2) Em `deleteAvatar`, só chamar `del` quando a URL começar com o prefixo do próprio store (`https://<store>.public.blob.vercel-storage.com/avatars/`) e contiver o `localId` do cliente. 3) Limitar tamanho de strings livres (`.max(…)`) em todos os validadores."
+              },
+              "properties": {
+                "severity": "BAIXA",
+                "status": "CONFIRMADO (gravação) / PROVÁVEL (remoção de arquivo alheio)",
+                "cwe": [
+                  "CWE-915 Modificação de atributos controlada externamente (mass assignment)",
+                  "CWE-73 Controle externo de nome de arquivo"
+                ],
+                "cvss": {
+                  "score": 3.5,
+                  "vector": "CVSS:4.0/AV:N/AC:H/AT:P/PR:L/UI:N/VC:N/VI:L/VA:N/SC:N/SI:L/SA:N"
+                }
+              }
+            },
+            {
+              "id": "AUD-010",
+              "name": "AUD010",
+              "shortDescription": {
+                "text": "Enumeração de contas: cadastro responde 'já cadastrado' e o login responde ~15× mais rápido para e-mails inexistentes"
+              },
+              "fullDescription": {
+                "text": "Saber quais e-mails têm conta alimenta credential stuffing (AUD-003), phishing direcionado e viola a privacidade dos clientes (revela que fulano usa o serviço). A recuperação de senha já é uniforme (controle validado), o que torna a falha localizada."
+              },
+              "help": {
+                "text": "1) Login: quando o usuário não existir, executar `comparePassword(data.password, DUMMY_HASH)` para igualar o tempo. 2) request-code: opcionalmente responder 200 genérico e enviar e-mail 'você já tem conta' ao endereço (trade-off de usabilidade — decisão de produto). 3) Manter a resposta uniforme do 'esqueci minha senha'."
+              },
+              "properties": {
+                "severity": "BAIXA",
+                "status": "CONFIRMADO",
+                "cwe": [
+                  "CWE-204 Discrepância observável de resposta",
+                  "CWE-208 Discrepância de tempo"
+                ],
+                "cvss": {
+                  "score": 2.3,
+                  "vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:L/VI:N/VA:N/SC:N/SI:N/SA:N"
+                }
+              }
+            },
+            {
+              "id": "AUD-011",
+              "name": "AUD011",
+              "shortDescription": {
+                "text": "Site (SPA) publicado sem cabeçalhos de segurança configurados — helmet protege apenas as respostas da API"
+              },
+              "fullDescription": {
+                "text": "Sem `frame-ancestors`, o site pode ser embutido em um iframe invisível em outra página (clickjacking) para induzir cliques em 'Remover' ou 'Sair'. Sem CSP, um XSS futuro ou um script de terceiro comprometido (fontes do Google são carregadas por CSS) teria liberdade total. São defesas em profundidade, não uma falha explorável hoje."
+              },
+              "help": {
+                "text": "Adicionar em vercel.json: `\"headers\": [{ \"source\": \"/(.*)\", \"headers\": [ {\"key\":\"X-Frame-Options\",\"value\":\"DENY\"}, {\"key\":\"X-Content-Type-Options\",\"value\":\"nosniff\"}, {\"key\":\"Referrer-Policy\",\"value\":\"strict-origin-when-cross-origin\"}, {\"key\":\"Permissions-Policy\",\"value\":\"camera=(), microphone=(), geolocation=()\"}, {\"key\":\"Content-Security-Policy\",\"value\":\"default-src 'self'; script-src 'self' 'sha256-<hash do script inline do tema>'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://*.public.blob.vercel-storage.com; connect-src 'self' https://api.mercadopago.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'\"} ] }]`. Mover o script inline do tema para arquivo próprio para dispensar o hash."
+              },
+              "properties": {
+                "severity": "BAIXA",
+                "status": "PROVÁVEL",
+                "cwe": [
+                  "CWE-1021 Restrição imprópria de frames (clickjacking)",
+                  "CWE-693 Falha de mecanismo de proteção"
+                ],
+                "cvss": {
+                  "score": 2.1,
+                  "vector": "CVSS:4.0/AV:N/AC:H/AT:N/PR:N/UI:A/VC:N/VI:L/VA:N/SC:N/SI:N/SA:N"
+                }
+              }
+            },
+            {
+              "id": "AUD-012",
+              "name": "AUD012",
+              "shortDescription": {
+                "text": "CORS libera permanentemente as origens localhost/capacitor com credenciais, inclusive em produção"
+              },
+              "fullDescription": {
+                "text": "Se um software local malicioso (ou um servidor de desenvolvimento de outro projeto na porta 80/443) abrir uma página em localhost, o navegador permitiria ler respostas da API — mas só se o cookie fosse enviado, o que SameSite=Lax bloqueia. O risco real hoje é residual; fica registrado porque o app Android (Capacitor) foi descontinuado e a exceção perdeu a razão de existir."
+              },
+              "help": {
+                "text": "Incluir as origens de desenvolvimento apenas quando `!env.isProduction`; remover `capacitor://localhost`/`https://localhost` já que o APK foi retirado."
+              },
+              "properties": {
+                "severity": "BAIXA",
+                "status": "CONFIRMADO",
+                "cwe": [
+                  "CWE-942 Política CORS permissiva"
+                ],
+                "cvss": {
+                  "score": 2.0,
+                  "vector": "CVSS:4.0/AV:N/AC:H/AT:P/PR:N/UI:A/VC:L/VI:N/VA:N/SC:N/SI:N/SA:N"
+                }
+              }
+            },
+            {
+              "id": "AUD-013",
+              "name": "AUD013",
+              "shortDescription": {
+                "text": "Proteção contra CSRF depende exclusivamente de SameSite=Lax (sem token nem checagem de Origin nas mutações)"
+              },
+              "fullDescription": {
+                "text": "CSRF ('falsificação de requisição entre sites') é quando um site malicioso usa a sessão da vítima para agir em seu nome. A proteção atual é correta para navegadores modernos, mas única: uma futura mudança para SameSite=None (ex.: para embutir o app) abriria todas as mutações de uma vez."
+              },
+              "help": {
+                "text": "Middleware nas rotas de mutação: rejeitar quando `Origin`/`Referer` presente e fora da allowlist (o app nativo com Bearer não envia cookie e pode ser isento); usar prefixo `__Host-` no nome do cookie em produção; exigir `Content-Type: application/json` nas rotas JSON."
+              },
+              "properties": {
+                "severity": "BAIXA",
+                "status": "CONFIRMADO",
+                "cwe": [
+                  "CWE-352 Cross-Site Request Forgery"
+                ],
+                "cvss": {
+                  "score": 2.3,
+                  "vector": "CVSS:4.0/AV:N/AC:H/AT:P/PR:N/UI:A/VC:N/VI:L/VA:N/SC:N/SI:N/SA:N"
+                }
+              }
+            },
+            {
+              "id": "AUD-014",
+              "name": "AUD014",
+              "shortDescription": {
+                "text": "Política de senha abaixo do recomendado (mínimo de 6 caracteres, sem bloqueio de senhas vazadas)"
+              },
+              "fullDescription": {
+                "text": "Com AUD-003 (limite por IP quebrado) e AUD-010 (enumeração), senhas curtas e comuns são o caminho mais barato para invadir contas; o hash forte só protege se a senha não for trivial."
+              },
+              "help": {
+                "text": "`min(8)` (idealmente 10) + `max(128)`; rejeitar as ~10 mil senhas mais comuns (lista local) ou consultar a API k-anonymity do Have I Been Pwned (prefixo SHA-1 de 5 caracteres, sem enviar a senha); indicador de força no formulário."
+              },
+              "properties": {
+                "severity": "BAIXA",
+                "status": "CONFIRMADO",
+                "cwe": [
+                  "CWE-521 Requisitos fracos de senha"
+                ],
+                "cvss": {
+                  "score": 2.7,
+                  "vector": "CVSS:4.0/AV:N/AC:H/AT:P/PR:N/UI:N/VC:L/VI:L/VA:N/SC:N/SI:N/SA:N"
+                }
+              }
+            },
+            {
+              "id": "AUD-015",
+              "name": "AUD015",
+              "shortDescription": {
+                "text": "Webhook de pagamento aceita chamadas anônimas sem assinatura (segredo opcional) e sem limite de taxa"
+              },
+              "fullDescription": {
+                "text": "Sem assinatura, o endpoint vira um 'amplificador': cada chamada anônima gera uma chamada autenticada ao Mercado Pago, podendo esgotar cotas ou gerar bloqueio temporário da integração (indisponibilidade dos pagamentos). A assinatura também é a única forma de saber que a notificação veio do Mercado Pago."
+              },
+              "help": {
+                "text": "1) Tornar MP_WEBHOOK_SECRET obrigatório em produção (falhar no boot). 2) Rate limit no webhook e no /billing/confirm. 3) Validar formato numérico do id antes de consultar. 4) Logar assinaturas inválidas com IP."
+              },
+              "properties": {
+                "severity": "BAIXA",
+                "status": "CONFIRMADO",
+                "cwe": [
+                  "CWE-306 Ausência de autenticação para função crítica (parcial)",
+                  "CWE-770"
+                ],
+                "cvss": {
+                  "score": 2.0,
+                  "vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:L/SC:N/SI:N/SA:N"
+                }
+              }
+            },
+            {
+              "id": "AUD-016",
+              "name": "AUD016",
+              "shortDescription": {
+                "text": "Dependências com vulnerabilidades conhecidas (npm audit: 4 altas, 8 moderadas) — alcance avaliado por pacote"
+              },
+              "fullDescription": {
+                "text": "Bibliotecas de terceiros executam com os mesmos privilégios do servidor. Mesmo avisos 'moderados' em parsing de query string (qs) podem virar negação de serviço com uma requisição bem construída."
+              },
+              "help": {
+                "text": "1) `npm update` nos pacotes diretos (sharp, multer, nodemailer, morgan, express); `npm audit fix`. 2) Remover @capacitor/* e o diretório client/android se o app nativo não voltar. 3) Adicionar `npm audit --audit-level=high` ao script de build/CI e dependabot/renovate no GitHub."
+              },
+              "properties": {
+                "severity": "BAIXA (exceto sharp/multer, tratados em AUD-002)",
+                "status": "CONFIRMADO (versões) / alcance por pacote no texto",
+                "cwe": [
+                  "CWE-1395 Dependência vulnerável"
+                ],
+                "cvss": {
+                  "score": 3.7,
+                  "vector": "CVSS:4.0/AV:N/AC:L/AT:P/PR:L/UI:N/VC:N/VI:N/VA:L/SC:N/SI:N/SA:N"
+                }
+              }
+            },
+            {
+              "id": "AUD-017",
+              "name": "AUD017",
+              "shortDescription": {
+                "text": "Sem registro de eventos de segurança nem alertas (logins falhos, redefinições, ações admin, pagamentos)"
+              },
+              "fullDescription": {
+                "text": "Sem registros não há como perceber um ataque de senha em andamento, provar quem liberou uma conta ou reconstruir um incidente — os achados AUD-001/003/008 ficariam invisíveis mesmo em exploração."
+              },
+              "help": {
+                "text": "1) Logger estruturado (pino) com eventos: login ok/falha (sem senha), reset solicitado/concluído, troca de senha, admin.free_account.add/remove, billing.payment.applied, webhook inválido, 402/403. 2) Enviar para Vercel Log Drain ou serviço (Axiom/Logtail) com retenção ≥90 dias. 3) Alertas: >10 falhas de login por conta/hora; qualquer ação admin; erro 5xx acima de limiar. 4) Nunca registrar tokens, senhas ou corpo de e-mail."
+              },
+              "properties": {
+                "severity": "BAIXA",
+                "status": "CONFIRMADO",
+                "cwe": [
+                  "CWE-778 Registro insuficiente",
+                  "CWE-223 Omissão de informação relevante para segurança"
+                ],
+                "cvss": {
+                  "score": 0.0,
+                  "vector": "não aplicável (ausência de controle detectivo)"
+                }
+              }
+            },
+            {
+              "id": "AUD-018",
+              "name": "AUD018",
+              "shortDescription": {
+                "text": "Observações informativas: token no corpo da resposta web, usuário/hosts do Atlas no repositório, erro 413 mapeado como 500, dados locais no dispositivo, backup do Atlas não verificado"
+              },
+              "fullDescription": {
+                "text": "Cada item reduz a margem de erro em cenários futuros (extensão maliciosa, ataque ao Atlas com usuário conhecido, perda de dados sem backup)."
+              },
+              "help": {
+                "text": "(a) Devolver `token` só quando a requisição vier com header do app nativo (ou removê-lo, já que o APK foi descontinuado). (b) Trocar o exemplo por `mongodb+srv://USUARIO:SENHA@SEU-CLUSTER/gestor`. (c) Mapear `entity.too.large` → 413. (d) Texto em Configurações: 'Em computador compartilhado, clique em Sair'. (e) Confirmar plano do Atlas; em M0, agendar `mongodump` semanal para storage privado e testar restauração."
+              },
+              "properties": {
+                "severity": "INFORMATIVA",
+                "status": "INFORMATIVO",
+                "cwe": [
+                  "CWE-200 (exposição de informação de configuração)",
+                  "CWE-209 (mensagens de erro)"
+                ],
+                "cvss": {
+                  "score": 0.0,
+                  "vector": "não aplicável"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "AUD-001",
+          "level": "error",
+          "message": {
+            "text": "O script de carga de exemplo grava no código a conta demo@gestorpro.com com senha fixa; o repositório é público (HTTP 200 sem login) e essa conta existe e aceita login no banco de produção usado pelo site."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/seed.ts"
+                },
+                "region": {
+                  "startLine": 12
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "AUD-002",
+          "level": "error",
+          "message": {
+            "text": "Qualquer usuário logado pode enviar um arquivo em POST /api/clients/:id/avatar; o filtro só confere o tipo que o navegador declara, e a biblioteca sharp decide o formato pelo conteúdo real — inclusive HEIF/AVIF, cujo decodificador (libheif) tem falhas de corrupção de memória corrigidas em sharp 0.35.4. O multer instalado (2.2.0) tem três avisos de negação de serviço por campos multipart maliciosos."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/middleware/uploadAvatar.ts"
+                },
+                "region": {
+                  "startLine": 6
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "AUD-003",
+          "level": "warning",
+          "message": {
+            "text": "O limitador de tentativas usa o endereço IP que o Express enxerga. Na Vercel, as requisições chegam por um proxy; sem `trust proxy`, o Express vê sempre o IP do proxy, então todos os usuários caem no mesmo balde de 20 tentativas por 15 minutos. Além disso o contador vive na memória de cada instância serverless, que nasce e morre a todo momento."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/app.ts"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "AUD-004",
+          "level": "warning",
+          "message": {
+            "text": "O login gera um token assinado que vale 7 dias e o servidor só confere a assinatura e a validade. Não existe lista de sessões, versão de senha no token nem expiração por inatividade. Logout apaga o cookie do navegador, mas o token continua aceito se alguém o tiver copiado."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/utils/jwt.ts"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "AUD-005",
+          "level": "warning",
+          "message": {
+            "text": "Quando APP_URL não está definido, o endereço usado no e-mail de 'esqueci minha senha' é calculado a partir do que a requisição informa: Origin (se igual a https://<Host>) ou, em último caso, o próprio Host. Esses cabeçalhos são controlados por quem faz a requisição."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/utils/appUrl.ts"
+                },
+                "region": {
+                  "startLine": 10
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "AUD-006",
+          "level": "warning",
+          "message": {
+            "text": "O que o usuário digita na busca é usado diretamente como expressão regular na consulta ao MongoDB, sem escapar caracteres especiais nem limitar o tamanho."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/controllers/client.controller.ts"
+                },
+                "region": {
+                  "startLine": 23
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "AUD-007",
+          "level": "warning",
+          "message": {
+            "text": "Quando um pagamento é confirmado, o servidor verifica se ele já foi aplicado e só depois grava; entre a verificação e a gravação, uma segunda chamada (webhook + retorno da página de pagamento ao mesmo tempo, ou duas abas) pode passar pela mesma verificação e somar 30 dias mais uma vez. O código também não confere se o valor pago corresponde ao preço nem trata pagamentos estornados ou contestados depois de aprovados."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/services/billing.ts"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "AUD-008",
+          "level": "warning",
+          "message": {
+            "text": "Quem estiver na lista ADMIN_EMAILS pode liberar acesso gratuito a qualquer e-mail. Esse poder depende só da senha da conta (mínimo 6 caracteres) e de uma sessão de 7 dias; não há segundo fator nem registro de quem liberou o quê."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/controllers/admin.controller.ts"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "AUD-009",
+          "level": "note",
+          "message": {
+            "text": "O usuário pode gravar qualquer texto no campo `avatarUrl` do seu cliente (deveria ser definido só pelo upload). Esse valor é usado depois para apagar o arquivo antigo no Vercel Blob com o token do servidor."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/validators/client.validators.ts"
+                },
+                "region": {
+                  "startLine": 17
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "AUD-010",
+          "level": "note",
+          "message": {
+            "text": "Dá para descobrir se um e-mail tem conta: o cadastro avisa explicitamente, e o login demora ~285 ms quando o e-mail existe (calcula o bcrypt) contra ~18 ms quando não existe."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/controllers/auth.controller.ts"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "AUD-011",
+          "level": "note",
+          "message": {
+            "text": "As páginas do app são servidas como arquivos estáticos pela Vercel; o helmet, que envia CSP, X-Frame-Options e afins, roda só no Express (API). Não há configuração de cabeçalhos para o HTML/JS."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "vercel.json"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "AUD-012",
+          "level": "note",
+          "message": {
+            "text": "Qualquer página servida em http://localhost ou https://localhost na máquina do usuário recebe permissão de chamar a API com credenciais (Access-Control-Allow-Credentials: true)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/config/env.ts"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "AUD-013",
+          "level": "note",
+          "message": {
+            "text": "Nada além do atributo SameSite=Lax do cookie impede que um site externo faça o navegador da vítima enviar uma requisição de alteração para a API."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/controllers/auth.controller.ts"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "AUD-014",
+          "level": "note",
+          "message": {
+            "text": "Senhas de 6 caracteres são aceitas e não há verificação contra listas de senhas já vazadas (ex.: '123456' passa)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/validators/auth.validators.ts"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "AUD-015",
+          "level": "note",
+          "message": {
+            "text": "Se MP_WEBHOOK_SECRET não for definido, qualquer pessoa pode chamar o webhook com um id de pagamento; o servidor então consulta a API do Mercado Pago com o token da loja. Não há limite de chamadas."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/app.ts"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "AUD-016",
+          "level": "note",
+          "message": {
+            "text": "O `npm audit` aponta 12 avisos. Após análise de alcance: nodemailer 6.10.1 (avisos de CRLF/DoS no parser de endereços — entradas aqui passam por validação `email()` do zod e não usam `raw`/`jsonTransport`, alcance baixo); express 4.22.2/body-parser/qs (bypass de limite de array e DoS em `isBuffer`, moderado, alcançável via query string); mercadopago→uuid 9 (bounds check em v3/v5 com buffer — não usado nesse modo, alcance improvável); morgan (log forging — só em desenvolvimento); @capacitor/cli→xmldom/xcode (somente build local do APK, descontinuado); sharp e multer (alcançáveis — AUD-002)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "package-lock.json"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "AUD-017",
+          "level": "note",
+          "message": {
+            "text": "Em produção o servidor não registra quem tentou entrar, quem redefiniu senha, quem liberou contas gratuitas ou quais pagamentos foram aplicados; erros vão para o log efêmero da Vercel."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/src/app.ts"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "AUD-018",
+          "level": "note",
+          "message": {
+            "text": "Conjunto de pontos sem caminho de exploração demonstrável: (a) o JWT é devolvido no corpo do login mesmo para o site, onde o cookie já basta — fica visível a extensões/scripts; (b) o `.env.example` público revela o nome do usuário do banco e os hosts do Atlas (a senha está mascarada); (c) corpo acima de 100 kB responde 500 em vez de 413; (d) os dados ficam no IndexedDB do navegador até 'Sair' — em computadores compartilhados, fechar a aba não os remove; (e) não foi possível verificar se o cluster tem backup e teste de restauração (clusters gratuitos M0 não têm backup automático)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "auth.controller.ts"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
