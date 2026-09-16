@@ -3,7 +3,8 @@ import { MercadoPagoConfig, Preference, Payment as MpPayment } from 'mercadopago
 import { Request } from 'express';
 import { User, UserDocument } from '../models/User';
 import { FreeAccount, Payment } from '../models/Billing';
-import { billingEnv } from '../config/env';
+import { Types } from 'mongoose';
+import { billingEnv, env } from '../config/env';
 import { ApiError } from '../utils/ApiError';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -113,6 +114,8 @@ async function mpCall<T>(what: string, run: () => Promise<T>): Promise<T> {
   try {
     return await run();
   } catch (err) {
+    // Our own errors (e.g. "token não configurado") already read well.
+    if (err instanceof ApiError) throw err;
     // eslint-disable-next-line no-console
     console.error(`[billing] Mercado Pago: ${what} failed`, err);
     const message =
@@ -179,20 +182,39 @@ export async function createCheckout(user: UserDocument, appUrl: string): Promis
   return { url };
 }
 
+/** Mercado Pago statuses that take an already-approved payment back. */
+const REVOKING_STATUSES = new Set(['refunded', 'charged_back', 'cancelled']);
+
+export type ApplyResult = {
+  /** Mercado Pago's status, or `amount_mismatch` when approved but not honoured. */
+  status: string;
+  userId?: string;
+};
+
 /**
  * Fetches a payment straight from Mercado Pago and, if approved, extends the
  * owner's access — once. Both the webhook and the return page call this, in
- * any order, any number of times.
+ * any order, any number of times, possibly at the same instant: every step
+ * that changes access is a single atomic update guarded by the payment row.
+ * A later refund/chargeback notification takes the period back again.
  */
-export async function applyPaymentById(
-  providerPaymentId: string
-): Promise<{ status: string; userId?: string }> {
+export async function applyPaymentById(providerPaymentId: string): Promise<ApplyResult> {
   const payment = await mpCall('get payment', () => new MpPayment(mpClient()).get({ id: providerPaymentId }));
   const status = payment.status ?? 'unknown';
   const userId =
     payment.external_reference || (payment.metadata as { user_id?: string } | undefined)?.user_id;
 
   if (!userId) return { status };
+
+  // Never trust "approved" alone: a payment for R$ 0,01 (or in another
+  // currency) created outside our checkout must not buy a period.
+  const amount = payment.transaction_amount ?? 0;
+  const currency = payment.currency_id ?? 'BRL';
+  const priceOk = currency === 'BRL' && amount + 0.005 >= billingEnv.priceMonthly;
+  const issue =
+    status === 'approved' && !priceOk
+      ? `valor ${currency} ${amount} abaixo do plano (BRL ${billingEnv.priceMonthly})`
+      : undefined;
 
   const record = await Payment.findOneAndUpdate(
     { providerPaymentId },
@@ -202,43 +224,96 @@ export async function applyPaymentById(
         status,
         amount: payment.transaction_amount,
         method: payment.payment_type_id,
+        ...(issue ? { issue } : {}),
       },
     },
     { upsert: true, new: true }
   );
 
-  if (status !== 'approved' || record.appliedAt) return { status, userId };
+  if (issue) {
+    // eslint-disable-next-line no-console
+    console.error(`[billing] payment ${providerPaymentId} not applied: ${issue}`);
+    return { status: 'amount_mismatch', userId };
+  }
 
-  const user = await User.findById(userId);
-  if (!user) return { status, userId };
-
-  // Days never go to waste: a payment made mid-trial (or before the previous
-  // period ends) starts counting when the current access would have ended.
-  const now = Date.now();
-  const start = new Date(Math.max(now, user.paidUntil?.getTime() ?? 0, user.trialEndsAt?.getTime() ?? 0));
-  const end = new Date(start.getTime() + billingEnv.periodDays * DAY_MS);
-
-  user.paidUntil = end;
-  user.lastPaymentAt = new Date();
-  await user.save();
-
-  record.appliedAt = new Date();
-  record.periodStart = start;
-  record.periodEnd = end;
-  await record.save();
+  if (status === 'approved' && !record.appliedAt) {
+    await grantPeriod(record.userId, providerPaymentId);
+  } else if (REVOKING_STATUSES.has(status) && record.appliedAt && !record.revokedAt) {
+    await revokePeriod(record.userId, providerPaymentId);
+  }
 
   return { status, userId };
 }
 
 /**
+ * Claims the payment row (only one caller wins, no matter how many race) and
+ * then pushes `paidUntil` forward in one pipeline update. Days never go to
+ * waste: a payment made mid-trial (or before the previous period ends)
+ * starts counting when the current access would have ended.
+ */
+async function grantPeriod(userId: Types.ObjectId, providerPaymentId: string): Promise<void> {
+  const claimedAt = new Date();
+  const claimed = await Payment.findOneAndUpdate(
+    { providerPaymentId, status: 'approved', appliedAt: null },
+    { $set: { appliedAt: claimedAt } },
+    { new: true }
+  );
+  if (!claimed) return; // somebody else got here first
+
+  const periodMs = billingEnv.periodDays * DAY_MS;
+  const user = await User.findByIdAndUpdate(
+    userId,
+    [
+      { $set: { _accessBase: { $max: [claimedAt, '$paidUntil', '$trialEndsAt'] } } },
+      { $set: { paidUntil: { $add: ['$_accessBase', periodMs] }, lastPaymentAt: claimedAt } },
+      { $unset: '_accessBase' },
+    ],
+    { new: true }
+  );
+
+  if (!user?.paidUntil) {
+    // Account vanished between checkout and payment — release the claim so
+    // a retry can apply it if the account comes back.
+    await Payment.updateOne({ providerPaymentId }, { $unset: { appliedAt: 1 } });
+    return;
+  }
+
+  claimed.periodStart = new Date(user.paidUntil.getTime() - periodMs);
+  claimed.periodEnd = user.paidUntil;
+  await claimed.save();
+}
+
+/** Mirror of grantPeriod for refunds/chargebacks: the same period is taken back once. */
+async function revokePeriod(userId: Types.ObjectId, providerPaymentId: string): Promise<void> {
+  const revokedAt = new Date();
+  const claimed = await Payment.findOneAndUpdate(
+    { providerPaymentId, appliedAt: { $ne: null }, revokedAt: null },
+    { $set: { revokedAt } },
+    { new: true }
+  );
+  if (!claimed) return;
+
+  const periodMs = billingEnv.periodDays * DAY_MS;
+  await User.updateOne({ _id: userId, paidUntil: { $ne: null } }, [
+    { $set: { paidUntil: { $subtract: ['$paidUntil', periodMs] } } },
+  ]);
+  // eslint-disable-next-line no-console
+  console.warn(
+    `[billing] payment ${providerPaymentId} revoked (${claimed.status}); ${periodMs / DAY_MS} days removed`
+  );
+}
+
+/**
  * Checks the `x-signature` header the way Mercado Pago documents it:
  * HMAC-SHA256 over `id:<data.id>;request-id:<x-request-id>;ts:<ts>;`.
- * Skipped when no secret is configured — the payment is still fetched from
- * Mercado Pago itself, so a forged call can at most make us look one up.
+ * In production the secret is mandatory: without it every notification is
+ * refused (the return page still confirms payments, so nobody is locked
+ * out — only the automatic path is off until MP_WEBHOOK_SECRET is set).
+ * In development it is skipped, since Mercado Pago can't reach localhost.
  */
 export function verifyWebhookSignature(req: Request, dataId: string): boolean {
   const secret = billingEnv.mpWebhookSecret;
-  if (!secret) return true;
+  if (!secret) return !env.isProduction;
 
   const signature = req.headers['x-signature'];
   const requestId = req.headers['x-request-id'];

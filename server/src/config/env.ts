@@ -68,7 +68,11 @@ export const env = {
 export const billingEnv = {
   /** Mercado Pago "Access Token" (Produção ou Teste) from the developer panel. */
   mpAccessToken: optional('MP_ACCESS_TOKEN'),
-  /** Optional: the webhook "Assinatura secreta" shown in the Mercado Pago panel. */
+  /**
+   * The webhook "Assinatura secreta" shown in the Mercado Pago panel.
+   * Mandatory in production once billing is on: without it notifications
+   * are refused (see verifyWebhookSignature).
+   */
   mpWebhookSecret: optional('MP_WEBHOOK_SECRET'),
   /** What one period costs, in BRL. */
   priceMonthly: Number(process.env.PLAN_PRICE_BRL ?? 11.9),
@@ -82,6 +86,13 @@ export const billingEnv = {
     .map((email) => email.trim().toLowerCase())
     .filter(Boolean),
 };
+
+if (env.isProduction && billingEnv.mpAccessToken && !billingEnv.mpWebhookSecret) {
+  // eslint-disable-next-line no-console
+  console.error(
+    '[billing] MP_WEBHOOK_SECRET não definido: as notificações do Mercado Pago serão recusadas (401) até configurá-lo.'
+  );
+}
 
 export type MailProvider = 'resend' | 'smtp' | 'console' | 'none';
 

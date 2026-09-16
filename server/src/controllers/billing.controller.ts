@@ -52,6 +52,11 @@ export const confirm = asyncHandler(async (req: Request, res: Response) => {
   if (result.userId && result.userId !== String(user._id)) {
     throw ApiError.forbidden('Este pagamento pertence a outra conta.');
   }
+  if (result.status === 'amount_mismatch') {
+    throw ApiError.badRequest(
+      'O valor pago não corresponde ao plano, por isso o acesso não foi liberado. Fale com o suporte informando o número do pagamento.'
+    );
+  }
 
   const fresh = await loadUser(req.userId);
   res.json({ paymentStatus: result.status, access: await computeAccess(fresh) });

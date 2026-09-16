@@ -40,6 +40,10 @@ export interface PaymentDocument extends Document {
   appliedAt?: Date;
   periodStart?: Date;
   periodEnd?: Date;
+  /** Set once a refund/chargeback took the period back. */
+  revokedAt?: Date;
+  /** Why an approved payment was NOT applied (wrong amount/currency). */
+  issue?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -54,6 +58,8 @@ const paymentSchema = new Schema<PaymentDocument>(
     appliedAt: { type: Date },
     periodStart: { type: Date },
     periodEnd: { type: Date },
+    revokedAt: { type: Date },
+    issue: { type: String },
   },
   { timestamps: true }
 );

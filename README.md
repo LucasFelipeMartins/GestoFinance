@@ -93,10 +93,13 @@ tudo hoje e ligar a cobrança depois.
 3. Em **Credenciais de produção**, copie o **Access Token** → `MP_ACCESS_TOKEN`.
    (Para testar sem dinheiro real use as **Credenciais de teste** e as contas de teste do painel.)
 4. Em **Webhooks** (na mesma aplicação): URL `https://SEU-SITE/api/billing/webhook`, evento
-   **Pagamentos**. Copie a **assinatura secreta** → `MP_WEBHOOK_SECRET`.
+   **Pagamentos**. Copie a **assinatura secreta** → `MP_WEBHOOK_SECRET` (obrigatória em
+   produção: sem ela o servidor recusa as notificações com 401).
    O webhook é um reforço: ao voltar do pagamento o próprio app já confirma com o Mercado Pago,
    então mesmo sem ele o acesso é liberado (só o boleto, que compensa depois, depende do webhook
-   ou de a pessoa abrir a página Assinatura de novo).
+   ou de a pessoa abrir a página Assinatura de novo). Ele também é o que devolve o período em
+   caso de estorno/chargeback; pagamentos com valor ou moeda diferentes do plano são registrados
+   mas não liberam acesso.
 
 ### 2. Você e as contas gratuitas
 
