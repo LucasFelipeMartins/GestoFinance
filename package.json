@@ -12,7 +12,7 @@
     "seed": "npm run seed -w server"
   },
   "devDependencies": {
-    "concurrently": "^9.1.0"
+    "concurrently": "^10.0.5"
   },
   "allowScripts": {
     "esbuild@0.28.2": true,
