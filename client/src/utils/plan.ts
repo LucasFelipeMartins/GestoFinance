@@ -42,11 +42,25 @@ export function describePlan(access: AccessInfo): PlanSummary {
           };
     case 'paid': {
       const renewing = access.subscription?.status === 'authorized';
+      const paidUntil = access.paidUntil ? formatDate(access.paidUntil) : '—';
+      // Paid while the free trial is still running: the paid days only start
+      // counting when the free ones end — say so, or it looks like the trial vanished.
+      const trialEnd = access.trialEndsAt ? new Date(access.trialEndsAt) : undefined;
+      const trialRunning = trialEnd !== undefined && trialEnd.getTime() > Date.now();
+      const freeDaysLeft = trialRunning
+        ? Math.max(1, Math.ceil((trialEnd.getTime() - Date.now()) / 86400000))
+        : 0;
+      const nextCharge = access.subscription?.nextChargeAt
+        ? formatDate(access.subscription.nextChargeAt)
+        : undefined;
+      const detail = trialRunning
+        ? `Seus ${plural(freeDaysLeft, 'dia')} grátis continuam até ${formatDate(trialEnd)}; os ${access.periodDays} dias pagos começam depois e vão até ${paidUntil}.`
+        : renewing
+          ? `Pago até ${paidUntil}${nextCharge ? ` · próxima cobrança no cartão em ${nextCharge}` : ''}.`
+          : `Pago até ${paidUntil} · ${plural(access.daysLeft, 'dia')} restante${access.daysLeft === 1 ? '' : 's'}.`;
       return {
         title: renewing ? 'Assinatura ativa · renovação automática' : 'Assinatura ativa',
-        detail: renewing
-          ? `Próxima cobrança no cartão em ${access.paidUntil ? formatDate(access.paidUntil) : '—'}.`
-          : `Pago até ${access.paidUntil ? formatDate(access.paidUntil) : '—'} · ${plural(access.daysLeft, 'dia')} restante${access.daysLeft === 1 ? '' : 's'}.`,
+        detail,
         tone: !renewing && access.daysLeft <= 3 ? 'warning' : 'neutral',
         canPay: true,
       };
