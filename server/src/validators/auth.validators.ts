@@ -1,8 +1,12 @@
 import { z } from 'zod';
+import { newPasswordField } from '../utils/passwordPolicy';
 
-const emailField = z.string().trim().toLowerCase().email('Informe um e-mail válido.');
-const nameField = z.string().trim().min(2, 'O nome deve ter ao menos 2 caracteres.');
-const newPasswordField = z.string().min(6, 'A senha deve ter ao menos 6 caracteres.');
+const emailField = z.string().trim().toLowerCase().max(254, 'E-mail muito longo.').email('Informe um e-mail válido.');
+const nameField = z
+  .string()
+  .trim()
+  .min(2, 'O nome deve ter ao menos 2 caracteres.')
+  .max(80, 'O nome pode ter no máximo 80 caracteres.');
 const codeField = z
   .string()
   .trim()
@@ -24,7 +28,7 @@ export const registerSchema = z.object({
 
 export const loginSchema = z.object({
   email: emailField,
-  password: z.string().min(1, 'Informe sua senha.'),
+  password: z.string().min(1, 'Informe sua senha.').max(128),
 });
 
 export const forgotPasswordSchema = z.object({
@@ -32,12 +36,12 @@ export const forgotPasswordSchema = z.object({
 });
 
 export const resetPasswordSchema = z.object({
-  token: z.string().trim().min(1, 'Link inválido.'),
+  token: z.string().trim().min(1, 'Link inválido.').max(200),
   password: newPasswordField,
 });
 
 export const changePasswordSchema = z.object({
-  currentPassword: z.string().min(1, 'Informe sua senha atual.'),
+  currentPassword: z.string().min(1, 'Informe sua senha atual.').max(128),
   newPassword: newPasswordField,
 });
 

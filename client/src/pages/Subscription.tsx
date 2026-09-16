@@ -19,7 +19,7 @@ const FEATURES = [
   'Receitas, despesas e parcelas do cartão',
   'Investimentos com simulador de rendimento',
   'Metas de economia',
-  'Funciona offline e sincroniza entre aparelhos',
+  'Acesse de qualquer aparelho pelo navegador',
 ];
 
 /**

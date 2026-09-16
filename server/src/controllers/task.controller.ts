@@ -3,6 +3,7 @@ import { FilterQuery, SortOrder } from 'mongoose';
 import { Task, TaskDocument } from '../models/Task';
 import { Client } from '../models/Client';
 import { asyncHandler } from '../utils/asyncHandler';
+import { searchRegex } from '../utils/search';
 import { ApiError } from '../utils/ApiError';
 import { defaultTaskSort } from '../utils/taskSort';
 import {
@@ -64,7 +65,7 @@ export const listTasks = asyncHandler(async (req: Request, res: Response) => {
   if (query.priority) filter.priority = query.priority;
   if (query.clientId) filter.clientId = query.clientId;
   if (query.search) {
-    const regex = new RegExp(query.search.trim(), 'i');
+    const regex = searchRegex(query.search);
     filter.$or = [{ title: regex }, { description: regex }];
   }
 

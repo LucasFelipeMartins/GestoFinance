@@ -23,10 +23,18 @@ export const env = {
   // native app's origins (which aren't a real remote domain). Android is
   // configured with androidScheme: 'https' in capacitor.config.ts, so the
   // app's origin is https://localhost, not the capacitor:// scheme.
-  clientOrigins: (process.env.CLIENT_ORIGIN ?? 'http://localhost:5173')
+  clientOrigins: (process.env.CLIENT_ORIGIN ?? '')
     .split(',')
     .map((origin) => origin.trim())
-    .concat(['https://localhost', 'capacitor://localhost', 'http://localhost']),
+    .filter(Boolean)
+    // The native app's fake origins, plus the Vite dev server — the latter
+    // only outside production, where a page on someone's own localhost must
+    // not be able to call the live API with the person's cookie.
+    .concat(
+      (process.env.NODE_ENV ?? 'development') === 'production'
+        ? ['https://localhost', 'capacitor://localhost']
+        : ['https://localhost', 'capacitor://localhost', 'http://localhost', 'http://localhost:5173']
+    ),
   /**
    * Public URL of the web app, used to build the links inside e-mails
    * (password reset). Optional: when unset the URL is derived from the
@@ -86,6 +94,11 @@ export const billingEnv = {
     .map((email) => email.trim().toLowerCase())
     .filter(Boolean),
 };
+
+if (env.isProduction && !env.appUrl) {
+  // eslint-disable-next-line no-console
+  console.error('[env] APP_URL não definido: os links dos e-mails usarão o Host da requisição.');
+}
 
 if (env.isProduction && billingEnv.mpAccessToken && !billingEnv.mpWebhookSecret) {
   // eslint-disable-next-line no-console

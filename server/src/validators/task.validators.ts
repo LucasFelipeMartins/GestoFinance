@@ -4,8 +4,8 @@ import { PRIORITIES, STATUSES } from '../types/enums';
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const baseTaskFields = {
-  title: z.string().trim().min(1, 'O título é obrigatório.'),
-  description: z.string().trim().optional(),
+  title: z.string().trim().min(1, 'O título é obrigatório.').max(120, 'Título muito longo.'),
+  description: z.string().trim().max(2000, 'Descrição muito longa.').optional(),
   clientId: z.string().regex(uuidRegex, 'Cliente inválido.').optional().or(z.literal('')),
   dueDate: z.coerce.date().optional(),
   priority: z.enum(PRIORITIES, { message: 'Selecione uma prioridade.' }),
@@ -45,7 +45,7 @@ export const updateTaskStatusSchema = z.object({
 });
 
 export const taskQuerySchema = z.object({
-  search: z.string().trim().optional(),
+  search: z.string().trim().max(100).optional(),
   status: z.enum(STATUSES).optional(),
   priority: z.enum(PRIORITIES).optional(),
   clientId: z.string().regex(uuidRegex).optional(),

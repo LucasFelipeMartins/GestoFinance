@@ -44,6 +44,14 @@ async function getCachedUser(): Promise<User | undefined> {
   return entry?.value as User | undefined;
 }
 
+/** A different account on the same browser must start from an empty local
+ * database — nothing of the previous person's may be shown or synced up. */
+async function adoptSession(user: User): Promise<void> {
+  const cached = await getCachedUser();
+  if (cached && cached.id !== user.id) await clearLocalData();
+  await cacheUser(user);
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -58,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!active) return;
         setUser(loggedUser);
         setIsOfflineSession(false);
-        await cacheUser(loggedUser);
+        await adoptSession(loggedUser);
       } catch (err) {
         if (!active) return;
 
@@ -90,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (payload: LoginPayload) => {
     const { user: loggedUser, token } = await authService.login(payload);
     if (token) await setToken(token);
-    await cacheUser(loggedUser);
+    await adoptSession(loggedUser);
     setIsOfflineSession(false);
     setUser(loggedUser);
   }, []);
@@ -103,7 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = useCallback(async (payload: RegisterPayload) => {
     const { user: newUser, token } = await authService.register(payload);
     if (token) await setToken(token);
-    await cacheUser(newUser);
+    await adoptSession(newUser);
     setIsOfflineSession(false);
     setUser(newUser);
   }, []);

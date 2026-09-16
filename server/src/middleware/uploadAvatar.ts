@@ -8,7 +8,14 @@ const storage = multer.memoryStorage();
 
 export const uploadAvatar = multer({
   storage,
-  limits: { fileSize: env.maxAvatarSizeMb * 1024 * 1024 },
+  limits: {
+    fileSize: env.maxAvatarSizeMb * 1024 * 1024,
+    files: 1,
+    fields: 5,
+    parts: 6,
+    fieldNameSize: 50,
+    fieldSize: 1024,
+  },
   fileFilter: (_req, file, cb) => {
     if (!ALLOWED_MIME_TYPES.has(file.mimetype)) {
       cb(ApiError.badRequest('Formato de imagem não suportado. Use JPG, PNG ou WebP.'));

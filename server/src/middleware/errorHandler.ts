@@ -31,6 +31,11 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     return;
   }
 
+  if (err && typeof err === 'object' && (err as { type?: string }).type === 'entity.too.large') {
+    res.status(413).json({ message: 'Requisição grande demais.' });
+    return;
+  }
+
   if (err instanceof ZodError) {
     const fields: Record<string, string> = {};
     for (const issue of err.issues) {

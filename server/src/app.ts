@@ -3,6 +3,7 @@ import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
+import mongoose from 'mongoose';
 import { env } from './config/env';
 import { connectDatabase } from './config/db';
 import routes from './routes';
@@ -11,6 +12,12 @@ import { asyncHandler } from './utils/asyncHandler';
 import { webhook as billingWebhook } from './controllers/billing.controller';
 
 const app = express();
+
+// Behind Vercel's proxy the socket peer is the proxy; the real client is in
+// the forwarded headers, which Vercel sets itself (they can't be spoofed
+// from outside). Needed for req.ip, req.protocol and secure cookies.
+if (env.isProduction) app.set('trust proxy', true);
+app.disable('x-powered-by');
 
 app.use(helmet({ crossOriginResourcePolicy: false }));
 
@@ -39,6 +46,26 @@ app.use((req, res, next) => {
   next();
 });
 
+// Cross-site request forgery guard for anything that changes state: a
+// browser always sends Origin on such requests, and it must be one of ours.
+// Requests without Origin (the mobile app, Mercado Pago's webhook, curl)
+// carry no ambient cookie to abuse, so they pass.
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (SAFE_METHODS.has(req.method) || !origin) {
+    next();
+    return;
+  }
+  const host = req.headers.host;
+  const sameOrigin = origin === `https://${host}` || origin === `http://${host}`;
+  if (sameOrigin || env.clientOrigins.includes(origin)) {
+    next();
+    return;
+  }
+  res.status(403).json({ message: 'Origem não permitida.' });
+});
+
 app.use(cookieParser());
 
 // Mercado Pago's notification. It arrives with any content type (sometimes
@@ -55,7 +82,7 @@ app.post(
   billingWebhook
 );
 
-app.use(express.json());
+app.use(express.json({ limit: '200kb' }));
 if (!env.isProduction) {
   app.use(morgan('dev'));
 }
@@ -71,8 +98,16 @@ app.use(
 
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok' });
+// Says whether the database is actually reachable, not just that the
+// function booted — that is what an uptime monitor should watch.
+app.get('/api/health', async (_req, res) => {
+  try {
+    await connectDatabase();
+    await mongoose.connection.db?.admin().ping();
+    res.json({ status: 'ok', db: 'up' });
+  } catch {
+    res.status(503).json({ status: 'degraded', db: 'down' });
+  }
 });
 
 app.use('/api', routes);

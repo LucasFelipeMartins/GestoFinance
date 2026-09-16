@@ -5,16 +5,17 @@ const phoneRegex = /^\(\d{2}\) \d{4,5}-\d{4}$/;
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const baseClientFields = {
-  name: z.string().trim().min(2, 'O nome deve ter ao menos 2 caracteres.'),
+  name: z.string().trim().min(2, 'O nome deve ter ao menos 2 caracteres.').max(120, 'Nome muito longo.'),
   phone: z
     .string()
     .trim()
     .regex(phoneRegex, 'Informe um telefone válido no formato (99) 99999-9999.'),
-  service: z.string().trim().min(1, 'O serviço é obrigatório.'),
+  service: z.string().trim().min(1, 'O serviço é obrigatório.').max(120, 'Serviço muito longo.'),
   price: z.coerce.number().min(0, 'Informe um valor maior ou igual a R$ 0,00.'),
   priority: z.enum(PRIORITIES, { message: 'Selecione uma prioridade.' }),
   status: z.enum(STATUSES).optional().default('pending'),
-  avatarUrl: z.string().optional(),
+  // avatarUrl is never accepted from the body: it is set only by the upload
+  // route, from our own storage. (Older clients still send it; it is dropped.)
   // Empty string is the explicit 'clear this date' signal — an absent key
   // just means 'leave it as is', which a partial update can't distinguish
   // from undefined once it round-trips through JSON.
@@ -38,7 +39,6 @@ export const updateClientSchema = z.object({
   price: true,
   priority: true,
   status: true,
-  avatarUrl: true,
   deliveryDate: true,
 });
 
@@ -49,7 +49,7 @@ export const updateClientStatusSchema = z.object({
 });
 
 export const clientQuerySchema = z.object({
-  search: z.string().trim().optional(),
+  search: z.string().trim().max(100).optional(),
   status: z.enum(STATUSES).optional(),
   priority: z.enum(PRIORITIES).optional(),
   sort: z.enum(['name', 'price', 'priority', 'createdAt', 'status', 'deliveryDate']).optional(),

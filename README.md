@@ -101,6 +101,19 @@ tudo hoje e ligar a cobrança depois.
    caso de estorno/chargeback; pagamentos com valor ou moeda diferentes do plano são registrados
    mas não liberam acesso.
 
+### 1b. Variáveis obrigatórias em produção
+
+- `APP_URL=https://SEU-SITE` — endereço usado nos links dos e-mails (sem ele o servidor usa o Host
+  da requisição e avisa no log).
+- `MP_WEBHOOK_SECRET` — sem ele as notificações do Mercado Pago são recusadas (401).
+- `ADMIN_EMAILS` — quem administra (nunca paga e libera contas gratuitas).
+
+Segurança embutida (não precisa configurar): sessões revogáveis (trocar/redefinir a senha desconecta
+os outros aparelhos), cookie `__Host-` httpOnly, limites de tentativas por IP **e por conta**
+guardados no MongoDB (valem entre instâncias da Vercel), bloqueio de senhas comuns, verificação do
+conteúdo real das imagens enviadas, cabeçalhos CSP/anti-frame no `vercel.json` e `/api/health`
+que testa o banco (use-o num monitor de disponibilidade, ex.: UptimeRobot).
+
 ### 2. Você e as contas gratuitas
 
 - `ADMIN_EMAILS=seuemail@gmail.com` (pode ter vários, separados por vírgula). Administradores

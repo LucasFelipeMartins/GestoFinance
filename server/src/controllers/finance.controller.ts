@@ -3,6 +3,7 @@ import { FilterQuery } from 'mongoose';
 import { FinanceEntry, FinanceEntryDocument } from '../models/FinanceEntry';
 import { FinanceKind, PaymentMethod } from '../types/enums';
 import { asyncHandler } from '../utils/asyncHandler';
+import { searchRegex } from '../utils/search';
 import { ApiError } from '../utils/ApiError';
 import {
   createFinanceSchema,
@@ -67,7 +68,7 @@ export const listFinanceEntries = asyncHandler(async (req: Request, res: Respons
   if (query.paid !== undefined) filter.paid = query.paid;
   if (query.clientId) filter.clientId = query.clientId;
   if (query.search) {
-    const regex = new RegExp(query.search.trim(), 'i');
+    const regex = searchRegex(query.search);
     filter.$or = [{ description: regex }, { category: regex }, { notes: regex }];
   }
 

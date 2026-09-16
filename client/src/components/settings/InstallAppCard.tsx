@@ -25,8 +25,8 @@ export function InstallAppCard() {
         </div>
 
         <p className="mt-3 text-body text-text-secondary">
-          Use o GestorFinance fora do navegador, com ícone próprio na tela inicial e funcionando offline.
-          A instalação é feita pelo próprio navegador, em poucos toques.
+          Use o GestorFinance com ícone próprio na tela inicial, como um aplicativo. A instalação é feita
+          pelo próprio navegador, em poucos toques — em breve também na Play Store e na App Store.
         </p>
 
         <div className="mt-5 flex flex-col gap-3">

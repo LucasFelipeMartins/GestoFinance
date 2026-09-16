@@ -10,9 +10,14 @@ import { getInitials } from './utils/initials';
 import mongoose from 'mongoose';
 
 const DEMO_EMAIL = 'demo@gestorpro.com';
-const DEMO_PASSWORD = 'demo1234';
+// Random per run and printed once: a demo account with a password anyone can
+// read in the repository is an open door into the database it lives in.
+const DEMO_PASSWORD = crypto.randomBytes(9).toString('base64url');
 
 async function seed() {
+  if (process.env.NODE_ENV === 'production' || process.env.VERCEL) {
+    throw new Error('[seed] recusado: nunca rode o seed contra o ambiente de produção.');
+  }
   await connectDatabase();
 
   let user = await User.findOne({ email: DEMO_EMAIL });
@@ -24,7 +29,9 @@ async function seed() {
     });
     console.log(`[seed] created demo user ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
   } else {
-    console.log(`[seed] demo user already exists, resetting their data`);
+    user.passwordHash = await hashPassword(DEMO_PASSWORD);
+    await user.save();
+    console.log(`[seed] demo user already exists, resetting their data; new password: ${DEMO_PASSWORD}`);
   }
 
   await Client.deleteMany({ userId: user._id });

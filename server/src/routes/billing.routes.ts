@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
+import { createLimiter } from '../middleware/rateLimit';
 import { getStatus, checkout, confirm } from '../controllers/billing.controller';
 import { requireAuth } from '../middleware/requireAuth';
 
@@ -7,12 +7,11 @@ const router = Router();
 
 // Each of these costs a round-trip to Mercado Pago; nobody legitimately
 // opens more than a handful of checkouts or confirmations in a quarter hour.
-const mpLimiter = rateLimit({
+const mpLimiter = createLimiter({
+  name: 'billing-ip',
   windowMs: 15 * 60 * 1000,
   limit: 15,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { message: 'Muitas tentativas. Aguarde alguns minutos e tente de novo.' },
+  message: 'Muitas tentativas. Aguarde alguns minutos e tente de novo.',
 });
 
 router.get('/status', requireAuth, getStatus);

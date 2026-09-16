@@ -3,10 +3,10 @@ import { z } from 'zod';
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const baseGoalFields = {
-  title: z.string().trim().min(1, 'Dê um nome para a meta.'),
+  title: z.string().trim().min(1, 'Dê um nome para a meta.').max(120, 'Nome muito longo.'),
   targetAmount: z.coerce.number({ message: 'Informe um valor.' }).positive('O valor deve ser maior que zero.'),
   targetDate: z.coerce.date({ message: 'Informe um prazo válido.' }),
-  notes: z.string().trim().optional(),
+  notes: z.string().trim().max(2000, 'Observações muito longas.').optional(),
   completedAt: z.coerce.date().optional(),
 };
 
@@ -27,7 +27,7 @@ const baseContributionFields = {
   // without deleting the history of what happened.
   amount: z.coerce.number({ message: 'Informe um valor.' }),
   date: z.coerce.date({ message: 'Informe uma data válida.' }),
-  note: z.string().trim().optional(),
+  note: z.string().trim().max(500, 'Observação muito longa.').optional(),
 };
 
 export const createGoalContributionSchema = z.object({

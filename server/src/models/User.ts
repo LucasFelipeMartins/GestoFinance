@@ -20,6 +20,9 @@ export interface UserDocument extends Document {
    * previous paidUntil or the trial end — nobody loses days by paying early. */
   paidUntil?: Date;
   lastPaymentAt?: Date;
+  /** Baked into every JWT; bumping it signs the person out everywhere
+   * (password reset/change). */
+  sessionVersion: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -34,6 +37,7 @@ const userSchema = new Schema<UserDocument>(
     trialEndsAt: { type: Date },
     paidUntil: { type: Date },
     lastPaymentAt: { type: Date },
+    sessionVersion: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

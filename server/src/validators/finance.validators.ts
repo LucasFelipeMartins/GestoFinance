@@ -5,11 +5,11 @@ const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
 
 const baseFinanceFields = {
   kind: z.enum(FINANCE_KINDS, { message: 'Tipo de lançamento inválido.' }),
-  description: z.string().trim().min(1, 'A descrição é obrigatória.'),
+  description: z.string().trim().min(1, 'A descrição é obrigatória.').max(200, 'Descrição muito longa.'),
   amount: z.coerce.number({ message: 'Informe um valor.' }).min(0, 'O valor não pode ser negativo.'),
   date: z.coerce.date({ message: 'Informe uma data válida.' }),
-  category: z.string().trim().optional(),
-  notes: z.string().trim().optional(),
+  category: z.string().trim().max(60, 'Categoria muito longa.').optional(),
+  notes: z.string().trim().max(2000, 'Observações muito longas.').optional(),
   clientId: z.string().regex(uuidRegex, 'Cliente inválido.').optional().or(z.literal('')),
   paid: z.boolean().optional(),
   paidAt: z.coerce.date().optional(),
@@ -48,7 +48,7 @@ export const updateFinanceSchema = z
   });
 
 export const financeQuerySchema = z.object({
-  search: z.string().trim().optional(),
+  search: z.string().trim().max(100).optional(),
   kind: z.enum(FINANCE_KINDS).optional(),
   paid: z
     .enum(['true', 'false'])

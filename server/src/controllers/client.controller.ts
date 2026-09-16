@@ -3,6 +3,7 @@ import { FilterQuery, SortOrder } from 'mongoose';
 import { Client, ClientDocument } from '../models/Client';
 import { Task } from '../models/Task';
 import { asyncHandler } from '../utils/asyncHandler';
+import { searchRegex } from '../utils/search';
 import { ApiError } from '../utils/ApiError';
 import { getInitials } from '../utils/initials';
 import { saveAvatar, deleteAvatar } from '../utils/avatar';
@@ -20,7 +21,7 @@ export const listClients = asyncHandler(async (req: Request, res: Response) => {
   if (query.status) filter.status = query.status;
   if (query.priority) filter.priority = query.priority;
   if (query.search) {
-    const regex = new RegExp(query.search.trim(), 'i');
+    const regex = searchRegex(query.search);
     filter.$or = [{ name: regex }, { phone: regex }, { service: regex }];
   }
 

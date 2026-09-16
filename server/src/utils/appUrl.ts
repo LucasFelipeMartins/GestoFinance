@@ -2,28 +2,23 @@ import { Request } from 'express';
 import { env } from '../config/env';
 
 /**
- * Where the web app lives, for links inside e-mails. APP_URL wins when set;
- * otherwise the request itself tells us — the SPA and the API are the same
- * Vercel deployment, so the Origin (or Host, for the native app whose origin
- * is a fake localhost) is exactly the address the user should open.
+ * Where the web app lives, for links inside e-mails. APP_URL wins when set
+ * (always, in production). Otherwise the Host that received the request is
+ * used — on Vercel that is the deployment itself, and unlike Origin it is
+ * not something a caller can choose freely, since a foreign Host would not
+ * have been routed here at all.
  */
 export function resolveAppUrl(req: Request): string {
   if (env.appUrl) return env.appUrl;
 
-  const origin = req.headers.origin;
-  const host = req.headers.host ?? 'localhost';
-  const isLocalOrigin = !origin || /^(https?|capacitor):\/\/localhost(:\d+)?$/.test(origin);
-  const sameOrigin = origin === `https://${host}` || origin === `http://${host}`;
-
-  if (origin && !isLocalOrigin && (sameOrigin || env.clientOrigins.includes(origin))) {
-    return origin;
-  }
-  if (!env.isProduction && origin) {
-    // Vite dev server proxying /api — the browser's origin is the app.
-    return origin;
-  }
-
+  const host = (req.headers['x-forwarded-host'] as string | undefined)?.split(',')[0]?.trim() || req.headers.host;
   const forwardedProto = (req.headers['x-forwarded-proto'] as string | undefined)?.split(',')[0]?.trim();
   const proto = forwardedProto ?? req.protocol ?? 'https';
-  return `${proto}://${host}`;
+
+  // Vite dev server proxying /api: the API's host is :4000 but the app is
+  // the page that made the request.
+  if (!env.isProduction && req.headers.origin && /^https?:\/\/localhost(:\d+)?$/.test(req.headers.origin)) {
+    return req.headers.origin;
+  }
+  return `${proto}://${host ?? 'localhost'}`;
 }

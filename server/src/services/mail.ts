@@ -1,4 +1,4 @@
-import nodemailer from 'nodemailer';
+import nodemailer, { Transporter } from 'nodemailer';
 import { env, mailProvider } from '../config/env';
 import { ApiError } from '../utils/ApiError';
 
@@ -42,7 +42,7 @@ async function sendViaResend(message: MailMessage): Promise<void> {
   }
 }
 
-let smtpTransport: nodemailer.Transporter | null = null;
+let smtpTransport: Transporter | null = null;
 
 async function sendViaSmtp(message: MailMessage): Promise<void> {
   if (!smtpTransport) {

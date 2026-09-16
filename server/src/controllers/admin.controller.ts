@@ -8,7 +8,7 @@ import { isAdminEmail } from '../services/billing';
 
 /** Only the e-mails in ADMIN_EMAILS get past this. */
 export const requireAdmin = asyncHandler(async (req: Request, _res: Response, next: NextFunction) => {
-  const user = await User.findById(req.userId).lean();
+  const user = req.user ?? (await User.findById(req.userId));
   if (!user || !isAdminEmail(user.email)) {
     throw ApiError.forbidden('Somente o administrador pode fazer isso.');
   }
@@ -40,7 +40,7 @@ const addSchema = z.object({
 
 export const addFreeAccount = asyncHandler(async (req: Request, res: Response) => {
   const data = addSchema.parse(req.body);
-  const admin = await User.findById(req.userId).lean();
+  const admin = req.user ?? (await User.findById(req.userId));
 
   const row = await FreeAccount.findOneAndUpdate(
     { email: data.email },

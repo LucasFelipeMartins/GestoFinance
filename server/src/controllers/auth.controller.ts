@@ -4,6 +4,7 @@ import { hashPassword, comparePassword } from '../utils/password';
 import { signToken } from '../utils/jwt';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/ApiError';
+import { AUTH_COOKIE } from '../middleware/requireAuth';
 import {
   requestRegisterCodeSchema,
   registerSchema,
@@ -29,14 +30,44 @@ import {
 
 const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
+const cookieOptions = {
+  httpOnly: true,
+  secure: env.isProduction,
+  sameSite: 'lax' as const,
+  path: '/',
+};
+
 function setAuthCookie(res: Response, token: string): void {
-  res.cookie('token', token, {
-    httpOnly: true,
-    secure: env.isProduction,
-    sameSite: 'lax',
-    maxAge: COOKIE_MAX_AGE_MS,
-  });
+  res.cookie(AUTH_COOKIE, token, { ...cookieOptions, maxAge: COOKIE_MAX_AGE_MS });
 }
+
+function clearAuthCookie(res: Response): void {
+  res.clearCookie(AUTH_COOKIE, cookieOptions);
+  // Sessions from before the __Host- rename still carry the old name.
+  if (AUTH_COOKIE !== 'token') res.clearCookie('token', cookieOptions);
+}
+
+function issueSession(user: UserDocument): string {
+  return signToken({ userId: String(user._id), sv: user.sessionVersion ?? 0 });
+}
+
+/**
+ * Browsers get the httpOnly cookie and nothing else; the token only goes in
+ * the body for clients that can't use cookies (the mobile app), which don't
+ * send an Origin header. Keeps the token out of reach of page scripts.
+ */
+function bodyToken(req: Request, token: string): { token?: string } {
+  const origin = req.headers.origin;
+  const NATIVE_ORIGINS = new Set(['capacitor://localhost', 'https://localhost']);
+  const isBrowser = Boolean(origin) && !NATIVE_ORIGINS.has(origin ?? '');
+  return isBrowser ? {} : { token };
+}
+
+/**
+ * bcrypt work for a non-existent account too, so "wrong password" and
+ * "no such e-mail" take the same time and can't be told apart by a clock.
+ */
+const DUMMY_HASH = '$2a$12$GoGZ9wr7S0d/schIJkHTieef2r1SXwf8k772X05iIpP222yJYpygC';
 
 function toPublicUser(user: { _id: unknown; name: string; email: string; avatarUrl?: string }) {
   return {
@@ -99,12 +130,12 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     trialEndsAt: new Date(Date.now() + billingEnv.trialDays * 24 * 60 * 60 * 1000),
   });
 
-  const token = signToken({ userId: String(user._id) });
+  const token = issueSession(user);
   setAuthCookie(res, token);
 
   // The cookie is what web relies on; `token` is for the native app, which
   // stores it itself and sends it back as an Authorization: Bearer header.
-  res.status(201).json({ user: await toSessionUser(user), token });
+  res.status(201).json({ user: await toSessionUser(user), ...bodyToken(req, token) });
 });
 
 /* ------------------------------------------------------------------ */
@@ -115,23 +146,19 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   const data = loginSchema.parse(req.body);
 
   const user = await User.findOne({ email: data.email });
-  if (!user) {
+  const valid = await comparePassword(data.password, user?.passwordHash ?? DUMMY_HASH);
+  if (!user || !valid) {
     throw ApiError.unauthorized('E-mail ou senha incorretos.');
   }
 
-  const valid = await comparePassword(data.password, user.passwordHash);
-  if (!valid) {
-    throw ApiError.unauthorized('E-mail ou senha incorretos.');
-  }
-
-  const token = signToken({ userId: String(user._id) });
+  const token = issueSession(user);
   setAuthCookie(res, token);
 
-  res.json({ user: await toSessionUser(user), token });
+  res.json({ user: await toSessionUser(user), ...bodyToken(req, token) });
 });
 
 export const logout = asyncHandler(async (_req: Request, res: Response) => {
-  res.clearCookie('token');
+  clearAuthCookie(res);
   res.status(204).send();
 });
 
@@ -193,11 +220,12 @@ export const resetPassword = asyncHandler(async (req: Request, res: Response) =>
   }
 
   user.passwordHash = await hashPassword(data.password);
+  // Every existing session — on this browser or any other device — belonged
+  // to whoever held the old password. Bumping the version ends them all.
+  user.sessionVersion = (user.sessionVersion ?? 0) + 1;
   await user.save();
 
-  // Any session cookie on this browser belongs to whoever held the old
-  // password — drop it so the new one has to be used from here on.
-  res.clearCookie('token');
+  clearAuthCookie(res);
   res.json({ message: 'Senha redefinida com sucesso. Entre com a nova senha.' });
 });
 
@@ -218,7 +246,12 @@ export const changePassword = asyncHandler(async (req: Request, res: Response) =
   }
 
   user.passwordHash = await hashPassword(data.newPassword);
+  user.sessionVersion = (user.sessionVersion ?? 0) + 1;
   await user.save();
 
-  res.json({ message: 'Senha alterada com sucesso.' });
+  // Other devices are signed out; this one gets a fresh session so the
+  // person isn't kicked out of the page they are on.
+  const token = issueSession(user);
+  setAuthCookie(res, token);
+  res.json({ message: 'Senha alterada com sucesso. Outros aparelhos conectados foram desconectados.', ...bodyToken(req, token) });
 });
