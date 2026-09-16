@@ -9,6 +9,17 @@ export interface CancelResult {
   accessUntil?: string;
 }
 
+export interface SubscribeResult {
+  preapprovalId: string;
+  subscriptionStatus: string;
+  paymentsApplied: number;
+  /** When the card is (or was) charged for the first time. */
+  firstChargeAt: string;
+  /** False when the first charge waits for the current access to end. */
+  chargedNow: boolean;
+  access: AccessInfo;
+}
+
 export const billingService = {
   async status(): Promise<AccessInfo> {
     const { data } = await api.get<{ access: AccessInfo }>('/billing/status');
@@ -22,14 +33,8 @@ export const billingService = {
   },
 
   /** Card with automatic renewal: creates the subscription from the Brick's card token. */
-  async subscribe(
-    cardTokenId: string
-  ): Promise<{ subscriptionStatus: string; paymentsApplied: number; access: AccessInfo }> {
-    const { data } = await api.post<{
-      subscriptionStatus: string;
-      paymentsApplied: number;
-      access: AccessInfo;
-    }>('/billing/subscribe', { cardTokenId });
+  async subscribe(cardTokenId: string): Promise<SubscribeResult> {
+    const { data } = await api.post<SubscribeResult>('/billing/subscribe', { cardTokenId });
     return data;
   },
 

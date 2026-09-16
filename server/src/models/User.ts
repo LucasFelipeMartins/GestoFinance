@@ -26,6 +26,8 @@ export interface UserDocument extends Document {
   /** pending | authorized | paused | cancelled (Mercado Pago's own states). */
   subscriptionStatus?: string;
   subscriptionCancelledAt?: Date;
+  /** Mercado Pago's next_payment_date — when the card is charged next. */
+  subscriptionNextChargeAt?: Date;
   /** Baked into every JWT; bumping it signs the person out everywhere
    * (password reset/change). */
   sessionVersion: number;
@@ -46,6 +48,7 @@ const userSchema = new Schema<UserDocument>(
     subscriptionId: { type: String, index: true },
     subscriptionStatus: { type: String },
     subscriptionCancelledAt: { type: Date },
+    subscriptionNextChargeAt: { type: Date },
     sessionVersion: { type: Number, default: 0 },
   },
   { timestamps: true }

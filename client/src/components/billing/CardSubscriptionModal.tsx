@@ -97,7 +97,7 @@ export function CardSubscriptionModal({
           initialization: { amount, payer: { email } },
           customization: {
             visual: { style: { theme }, hideFormTitle: true },
-            paymentMethods: { maxInstallments: 1, types: { excluded: ['debit_card'] } },
+            paymentMethods: { maxInstallments: 1 },
           },
           callbacks: {
             onReady: () => {

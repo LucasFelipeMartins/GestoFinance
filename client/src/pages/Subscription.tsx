@@ -154,9 +154,24 @@ export default function Subscription() {
       setCardOpen(false);
       if (result.subscriptionStatus === 'authorized') {
         setConfirming('subscribed');
-        toast.success('Renovação automática ativada!');
-        // The first charge can take a few seconds to show up on the plan.
-        if (result.paymentsApplied === 0) setTimeout(() => refreshAccess(), 4000);
+        toast.success(
+          result.chargedNow
+            ? 'Renovação automática ativada!'
+            : `Cartão salvo! A primeira cobrança será em ${formatDate(result.firstChargeAt)}, quando seu acesso atual terminar.`
+        );
+        // An immediate charge can take a few seconds to become visible at
+        // Mercado Pago; re-sync until the days show up (the webhook would
+        // apply it anyway, this just spares the person a refresh).
+        if (result.chargedNow && result.paymentsApplied === 0) {
+          [4000, 10000].forEach((delay) =>
+            setTimeout(() => {
+              billingService
+                .confirmSubscription(result.preapprovalId)
+                .then((synced) => applyAccess(synced.access))
+                .catch(() => undefined);
+            }, delay)
+          );
+        }
       } else {
         setConfirming('pending');
       }

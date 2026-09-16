@@ -25,9 +25,16 @@ async function loadUser(req: Request) {
   return user;
 }
 
-/** Access plus what the plan page needs on top: subscription state and the cancel preview. */
+/**
+ * Access plus what the plan page needs on top: subscription state and the
+ * cancel preview. Always re-reads the account — the handlers above it have
+ * just changed it (payment applied, subscription created), and req.user is
+ * the copy from before.
+ */
 async function fullAccess(req: Request) {
-  const user = await loadUser(req);
+  const user = await User.findById(req.userId);
+  if (!user) throw ApiError.unauthorized();
+  await ensureTrial(user);
   const access = await computeAccess(user);
   return { ...access, cancelPreview: await previewCancellation(user) };
 }
@@ -62,8 +69,11 @@ export const subscribe = asyncHandler(async (req: Request, res: Response) => {
   assertPayable((await computeAccess(user)).reason);
   const result = await createSubscription(user, cardTokenId, resolveAppUrl(req));
   res.json({
+    preapprovalId: result.id,
     subscriptionStatus: result.status,
     paymentsApplied: result.applied,
+    firstChargeAt: result.firstChargeAt,
+    chargedNow: result.chargedNow,
     access: await fullAccess(req),
   });
 });

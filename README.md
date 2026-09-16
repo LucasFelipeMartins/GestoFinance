@@ -90,11 +90,14 @@ tudo hoje e ligar a cobrança depois.
 1. Crie/entre na conta em <https://www.mercadopago.com.br> (funciona com CPF).
 2. Acesse <https://www.mercadopago.com.br/developers/panel/app> → **Criar aplicação** →
    tipo "Pagamentos online" / "Checkout Pro".
-3. Em **Credenciais de produção**, copie o **Access Token** → `MP_ACCESS_TOKEN`.
-   (Para testar sem dinheiro real use as **Credenciais de teste** e as contas de teste do painel.)
-4. Em **Webhooks** (na mesma aplicação): URL `https://SEU-SITE/api/billing/webhook`, evento
-   **Pagamentos**. Copie a **assinatura secreta** → `MP_WEBHOOK_SECRET` (obrigatória em
-   produção: sem ela o servidor recusa as notificações com 401).
+3. Em **Credenciais de produção**, copie o **Access Token** → `MP_ACCESS_TOKEN` e a
+   **Public Key** → `MP_PUBLIC_KEY` (ela alimenta o formulário de cartão no navegador).
+   (Para testar sem dinheiro real use as **Credenciais de teste** e as contas de teste do painel;
+   no sandbox defina também `MP_TEST_PAYER_EMAIL` com o e-mail do comprador de teste.)
+4. Em **Webhooks** (na mesma aplicação, aba do modo que estiver usando): URL
+   `https://SEU-SITE/api/billing/webhook`, eventos **Pagamentos** e **Planos e assinaturas**.
+   Copie a **assinatura secreta** → `MP_WEBHOOK_SECRET` (obrigatória em produção: sem ela o
+   servidor recusa as notificações com 401; a chave do modo teste é diferente da de produção).
    O webhook é um reforço: ao voltar do pagamento o próprio app já confirma com o Mercado Pago,
    então mesmo sem ele o acesso é liberado (só o boleto, que compensa depois, depende do webhook
    ou de a pessoa abrir a página Assinatura de novo). Ele também é o que devolve o período em
@@ -114,6 +117,17 @@ guardados no MongoDB (valem entre instâncias da Vercel), bloqueio de senhas com
 conteúdo real das imagens enviadas, cabeçalhos CSP/anti-frame no `vercel.json` e `/api/health`
 que testa o banco (use-o num monitor de disponibilidade, ex.: UptimeRobot).
 
+### 1c. Como a cobrança funciona
+
+- **Cartão** — assinatura do Mercado Pago com renovação automática. O cartão é digitado num
+  formulário do próprio Mercado Pago dentro do app (o número nunca passa pelo servidor). Quem
+  ainda tem dias de teste ou dias pagos só é cobrado quando eles acabarem. Cancelar para a
+  renovação; o acesso segue até o fim do período pago.
+- **Pix / boleto** — 30 dias avulsos, sem renovação. Cancelar um período pago por Pix devolve o
+  proporcional aos dias não usados (estorno automático; se o Mercado Pago recusar, o
+  administrador recebe um e-mail para devolver manualmente) e encerra o acesso; boleto não tem
+  estorno e o acesso segue até o fim do período.
+
 ### 2. Você e as contas gratuitas
 
 - `ADMIN_EMAILS=seuemail@gmail.com` (pode ter vários, separados por vírgula). Administradores
@@ -127,6 +141,7 @@ Na Vercel (Settings → Environment Variables) e no `server/.env` local:
 
 ```env
 MP_ACCESS_TOKEN=APP_USR-...
+MP_PUBLIC_KEY=APP_USR-...
 MP_WEBHOOK_SECRET=...
 ADMIN_EMAILS=seuemail@gmail.com
 # opcionais: PLAN_PRICE_BRL=11.90  PLAN_PERIOD_DAYS=30  TRIAL_DAYS=7

@@ -91,10 +91,10 @@ export function describeSubscription(user: UserDocument): SubscriptionInfo | und
   return {
     status: user.subscriptionStatus,
     cancelledAt: user.subscriptionCancelledAt?.toISOString(),
-    // Renewals land on the paid-until date; showing it as "next charge" is
-    // what the person expects to read even if Mercado Pago's clock differs
-    // by a few hours.
-    nextChargeAt: user.subscriptionStatus === 'authorized' ? user.paidUntil?.toISOString() : undefined,
+    nextChargeAt:
+      user.subscriptionStatus === 'authorized'
+        ? (user.subscriptionNextChargeAt ?? user.paidUntil)?.toISOString()
+        : undefined,
   };
 }
 
@@ -261,10 +261,18 @@ export async function createSubscription(
   user: UserDocument,
   cardTokenId: string,
   appUrl: string
-): Promise<{ status: string; applied: number }> {
+): Promise<{ id: string; status: string; applied: number; firstChargeAt: string; chargedNow: boolean }> {
   if (user.subscriptionId && user.subscriptionStatus === 'authorized') {
     throw ApiError.badRequest('Sua renovação automática já está ativa.');
   }
+
+  // Nobody pays for days they already have: mid-trial (or with prepaid Pix
+  // days left) the card is only charged when the current access would end.
+  // Mercado Pago then renews monthly from that date.
+  const now = Date.now();
+  const accessEnd = Math.max(user.paidUntil?.getTime() ?? 0, user.trialEndsAt?.getTime() ?? 0);
+  const chargedNow = accessEnd - now < DAY_MS;
+  const firstChargeAt = chargedNow ? new Date(now) : new Date(accessEnd);
 
   const result = await mpCall('create preapproval', () =>
     new PreApproval(mpClient()).create({
@@ -278,6 +286,7 @@ export async function createSubscription(
           frequency_type: 'months',
           transaction_amount: price(),
           currency_id: 'BRL',
+          ...(chargedNow ? {} : { start_date: firstChargeAt.toISOString() }),
         },
         back_url: `${appUrl}/assinatura`,
         status: 'authorized',
@@ -292,12 +301,21 @@ export async function createSubscription(
   user.subscriptionId = result.id;
   user.subscriptionStatus = result.status ?? 'pending';
   user.subscriptionCancelledAt = undefined;
+  user.subscriptionNextChargeAt = result.next_payment_date
+    ? new Date(result.next_payment_date)
+    : firstChargeAt;
   await user.save();
 
-  // The first charge is usually visible immediately; if not, the webhook
-  // (or the next status refresh) applies it.
-  const applied = result.status === 'authorized' ? await applyRecentPayments(user) : 0;
-  return { status: result.status ?? 'pending', applied };
+  // An immediate first charge is usually searchable within seconds; if not
+  // yet, the page re-syncs shortly after (and the webhook applies it anyway).
+  const applied = chargedNow && result.status === 'authorized' ? await applyRecentPayments(user) : 0;
+  return {
+    id: result.id,
+    status: result.status ?? 'pending',
+    applied,
+    firstChargeAt: (user.subscriptionNextChargeAt ?? firstChargeAt).toISOString(),
+    chargedNow,
+  };
 }
 
 /**
@@ -325,6 +343,7 @@ export async function syncSubscription(
 
   user.subscriptionId = preapprovalId;
   user.subscriptionStatus = status;
+  if (sub.next_payment_date) user.subscriptionNextChargeAt = new Date(sub.next_payment_date);
   if (status === 'cancelled' && !user.subscriptionCancelledAt) user.subscriptionCancelledAt = new Date();
   if (status === 'authorized') user.subscriptionCancelledAt = undefined;
   await user.save();
@@ -375,6 +394,8 @@ export async function applyAuthorizedPayment(
   return applyPaymentById(String(body.payment.id));
 }
 
+const CARD_TYPES = new Set(['credit_card', 'debit_card', 'prepaid_card']);
+
 /** Mercado Pago statuses that take an already-approved payment back. */
 const REVOKING_STATUSES = new Set(['refunded', 'charged_back', 'cancelled']);
 
@@ -422,8 +443,16 @@ export async function applyPaymentById(providerPaymentId: string): Promise<Apply
       ? `valor ${currency} ${amount} abaixo do plano (BRL ${billingEnv.priceMonthly})`
       : undefined;
 
+  // Subscription charges come through as plain card payments (operation
+  // type "regular_payment", empty metadata); cards are only ever used via
+  // the subscription in our flow, so a card payment of a subscribed account
+  // is a subscription charge.
   const metadata = (payment.metadata ?? {}) as { preapproval_id?: string };
-  const isRecurring = payment.operation_type === 'recurring_payment' || Boolean(metadata.preapproval_id);
+  const isCard = CARD_TYPES.has(payment.payment_type_id ?? '');
+  const isRecurring =
+    payment.operation_type === 'recurring_payment' ||
+    Boolean(metadata.preapproval_id) ||
+    (isCard && Boolean(await User.exists({ _id: userId, subscriptionId: { $ne: null } })));
 
   const record = await Payment.findOneAndUpdate(
     { providerPaymentId },
