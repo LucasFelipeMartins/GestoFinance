@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Flag, Plus, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Flag, Plus, CheckCircle2, ArrowRight, PiggyBank } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { SkeletonCard } from '@/components/ui/Skeleton';
@@ -29,7 +29,7 @@ export function GoalsPanel({ limit = 4 }: { limit?: number }) {
 
   // The modals hold a snapshot, so re-read the live version after a mutation
   // rather than showing numbers that stopped being true.
-  const liveDetail = detail ? goals?.find((g) => g.goal.id === detail.goal.id) ?? null : null;
+  const liveDetail = detail ? (goals?.find((g) => g.goal.id === detail.goal.id) ?? null) : null;
 
   const openAdd = () => {
     setEditingGoal(undefined);
@@ -70,8 +70,8 @@ export function GoalsPanel({ limit = 4 }: { limit?: number }) {
             <Flag size={20} />
           </span>
           <p className="text-body text-text-secondary">
-            Nenhuma meta ainda. Crie uma — &ldquo;Viajar&rdquo;, R$ 1.200, em 5 meses — e vá
-            adicionando valores quando quiser.
+            Nenhuma meta ainda. Crie uma — &ldquo;Viajar&rdquo;, R$ 1.200, em 5 meses — e vá adicionando
+            valores quando quiser.
           </p>
           <Button size="sm" variant="secondary" leftIcon={<Plus size={16} />} onClick={openAdd}>
             Criar meta
@@ -95,9 +95,7 @@ export function GoalsPanel({ limit = 4 }: { limit?: number }) {
           to="/metas"
           className="mt-4 inline-flex items-center gap-1 self-start text-body-strong text-sage-green hover:underline"
         >
-          {all.length > visible.length
-            ? `Ver todas as ${all.length} metas`
-            : 'Abrir página de metas'}
+          {all.length > visible.length ? `Ver todas as ${all.length} metas` : 'Abrir página de metas'}
           <ArrowRight size={15} />
         </Link>
       )}
@@ -170,6 +168,12 @@ function GoalRow({
             >
               {deadlineLabel}
             </p>
+            {progress.linkedBox && (
+              <p className="flex items-center gap-1 truncate text-caption text-sage-green">
+                <PiggyBank size={12} className="shrink-0" />
+                Cofrinho: {progress.linkedBox.name}
+              </p>
+            )}
           </div>
           <div className="shrink-0 text-right">
             <p className="text-body-strong text-text-primary">{formatCurrency(progress.saved)}</p>

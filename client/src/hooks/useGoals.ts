@@ -44,6 +44,20 @@ export function useUpdateGoal() {
   });
 }
 
+/** Link (or unlink, with boxId undefined) a goal to a cofrinho. */
+export function useLinkGoalToBox() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ goalId, boxId }: { goalId: string; boxId: string | undefined }) =>
+      goalRepository.setLinkedBox(goalId, boxId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['goals'] });
+      queryClient.invalidateQueries({ queryKey: ['boxes'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
 export function useDeleteGoal() {
   const queryClient = useQueryClient();
   return useMutation({

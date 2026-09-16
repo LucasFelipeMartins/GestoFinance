@@ -113,6 +113,10 @@ o saldo e a taxa daquele cofrinho. O Início continua mostrando um único total 
 cofrinhos são só uma forma de agrupar. Remover um cofrinho não apaga o dinheiro: os lançamentos
 viram aplicações avulsas.
 
+Uma **meta pode ser vinculada a um cofrinho** (no formulário de qualquer um dos dois). Vinculada, o
+progresso da meta é o saldo do cofrinho e "Adicionar valor" na meta guarda direto nele — um lugar só
+para atualizar; a lista de depósitos da meta passa a ser os movimentos do cofrinho.
+
 ### 1b. Variáveis obrigatórias em produção
 
 - `APP_URL=https://SEU-SITE` — endereço usado nos links dos e-mails (sem ele o servidor usa o Host

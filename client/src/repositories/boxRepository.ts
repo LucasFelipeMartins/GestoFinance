@@ -3,6 +3,7 @@ import { enqueueOutbox, cancelPendingCreate } from '@/db/outbox';
 import { BoxColor, BoxSummary, FinanceEntry, InvestmentBox } from '@/types';
 import { BoxCreatePayload } from '@/services/boxService';
 import { financeRepository } from './financeRepository';
+import { goalRepository } from './goalRepository';
 
 function toBox(row: LocalInvestmentBox): InvestmentBox {
   return { ...row, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() };
@@ -121,6 +122,10 @@ async function remove(id: string): Promise<void> {
   const entries = await db.finance.where('boxId').equals(id).toArray();
   for (const entry of entries) {
     await db.finance.put({ ...entry, boxId: undefined });
+  }
+  // A goal that mirrored this pot goes back to its own deposits.
+  for (const goal of await goalRepository.goalsLinkedTo(id)) {
+    await goalRepository.setLinkedBox(goal.id, undefined);
   }
   const cancelled = await cancelPendingCreate('investmentBox', id);
   if (!cancelled) await enqueueOutbox('investmentBox', id, 'delete');

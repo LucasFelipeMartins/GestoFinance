@@ -1,4 +1,4 @@
-import { PlusCircle, X, Pencil, Trash2 } from 'lucide-react';
+import { PlusCircle, X, Pencil, Trash2, PiggyBank } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
@@ -49,7 +49,12 @@ export function GoalDetailModal({ progress, onOpenChange, onEdit, onAddValue }: 
   };
 
   return (
-    <Modal open onOpenChange={onOpenChange} title={goal.title} description={`Prazo: ${formatDate(goal.targetDate)}`}>
+    <Modal
+      open
+      onOpenChange={onOpenChange}
+      title={goal.title}
+      description={`Prazo: ${formatDate(goal.targetDate)}`}
+    >
       <div className="flex flex-col gap-5">
         <div>
           <p className="text-display text-text-primary">{formatCurrency(progress.saved)}</p>
@@ -77,8 +82,20 @@ export function GoalDetailModal({ progress, onOpenChange, onEdit, onAddValue }: 
           Adicionar valor
         </Button>
 
+        {progress.linkedBox && (
+          <p className="flex items-start gap-2 rounded-input bg-tint px-3 py-2.5 text-caption text-text-secondary">
+            <PiggyBank size={14} className="mt-0.5 shrink-0 text-sage-green" />
+            <span>
+              Vinculada ao cofrinho <strong className="text-text-primary">{progress.linkedBox.name}</strong>:
+              o progresso é o saldo dele. Para corrigir ou resgatar um valor, use a página Investimentos.
+            </span>
+          </p>
+        )}
+
         <div>
-          <h4 className="text-body-strong text-text-primary">Depósitos</h4>
+          <h4 className="text-body-strong text-text-primary">
+            {progress.linkedBox ? 'Movimentos do cofrinho' : 'Depósitos'}
+          </h4>
           {progress.contributions.length === 0 ? (
             <p className="mt-2 text-caption text-text-secondary">Nenhum valor adicionado ainda.</p>
           ) : (
@@ -87,18 +104,22 @@ export function GoalDetailModal({ progress, onOpenChange, onEdit, onAddValue }: 
                 <li key={contribution.id} className="flex items-center gap-3 py-2">
                   <PlusCircle size={16} className="shrink-0 text-sage-green" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-body-strong text-text-primary">{formatCurrency(contribution.amount)}</p>
+                    <p className="text-body-strong text-text-primary">
+                      {formatCurrency(contribution.amount)}
+                    </p>
                     <p className="truncate text-caption text-text-secondary">
                       {formatDate(contribution.date)}
                       {contribution.note ? ` · ${contribution.note}` : ''}
                     </p>
                   </div>
-                  <IconButton
-                    icon={<X size={16} />}
-                    label="Remover este depósito"
-                    variant="danger"
-                    onClick={() => handleDeleteContribution(contribution.id)}
-                  />
+                  {!progress.linkedBox && (
+                    <IconButton
+                      icon={<X size={16} />}
+                      label="Remover este depósito"
+                      variant="danger"
+                      onClick={() => handleDeleteContribution(contribution.id)}
+                    />
+                  )}
                 </li>
               ))}
             </ul>

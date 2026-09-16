@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { InvestmentBox } from '../models/InvestmentBox';
 import { FinanceEntry } from '../models/FinanceEntry';
+import { Goal } from '../models/Goal';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/ApiError';
 import { createBoxSchema, updateBoxSchema } from '../validators/box.validators';
@@ -48,5 +49,7 @@ export const deleteBox = asyncHandler(async (req: Request, res: Response) => {
   // The money stays: the investments just stop being grouped under a pot,
   // so the total invested (Home) is exactly what it was.
   await FinanceEntry.updateMany({ userId: req.userId, boxId: box.localId }, { $unset: { boxId: '' } });
+  // A goal that mirrored this pot goes back to counting its own deposits.
+  await Goal.updateMany({ userId: req.userId, boxId: box.localId }, { $unset: { boxId: '' } });
   res.status(204).send();
 });

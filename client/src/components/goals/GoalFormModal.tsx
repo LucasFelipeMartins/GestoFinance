@@ -5,7 +5,9 @@ import { Input, Textarea } from '@/components/ui/Input';
 import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
 import { useCreateGoal, useUpdateGoal } from '@/hooks/useGoals';
+import { useBoxes } from '@/hooks/useBoxes';
 import { useToast } from '@/context/ToastContext';
 import { getApiErrorMessage } from '@/services/api';
 import { Goal } from '@/types';
@@ -43,18 +45,21 @@ export function GoalFormModal({ open, onOpenChange, goal }: GoalFormModalProps) 
   const [title, setTitle] = useState(goal?.title ?? '');
   const [targetAmount, setTargetAmount] = useState(goal?.targetAmount ?? 0);
   const [notes, setNotes] = useState(goal?.notes ?? '');
+  const [boxId, setBoxId] = useState(goal?.boxId ?? '');
+  const boxes = useBoxes().data ?? [];
+  const linkedBox = boxes.find((item) => item.box.id === boxId);
   // The form asks for a prazo in months, which is how people think about it;
   // what gets stored is the resulting date, so it keeps meaning the same day
   // as time passes.
   const [months, setMonths] = useState(
     goal ? String(monthsBetween(new Date(), new Date(goal.targetDate))) : '5'
   );
-  const [explicitDate, setExplicitDate] = useState(
-    goal ? toDateInputValue(goal.targetDate) : ''
-  );
+  const [explicitDate, setExplicitDate] = useState(goal ? toDateInputValue(goal.targetDate) : '');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const targetDate = explicitDate ? (parseDateInput(explicitDate) ?? addMonths(Number(months))) : addMonths(Number(months));
+  const targetDate = explicitDate
+    ? (parseDateInput(explicitDate) ?? addMonths(Number(months)))
+    : addMonths(Number(months));
   const monthsToTarget = Math.max(1, monthsBetween(new Date(), targetDate));
   const isSubmitting = createGoal.isPending || updateGoal.isPending;
 
@@ -72,6 +77,7 @@ export function GoalFormModal({ open, onOpenChange, goal }: GoalFormModalProps) 
       targetAmount,
       targetDate: targetDate.toISOString(),
       notes: notes.trim() || undefined,
+      boxId,
     };
 
     try {
@@ -132,8 +138,29 @@ export function GoalFormModal({ open, onOpenChange, goal }: GoalFormModalProps) 
           <p className="flex items-start gap-2 rounded-input bg-tint px-3 py-2.5 text-caption text-text-secondary">
             <PiggyBank size={14} className="mt-0.5 shrink-0 text-sage-green" />
             Para chegar lá em {formatDate(targetDate)}, guarde cerca de{' '}
-            <strong className="text-text-primary">{formatCurrency(targetAmount / monthsToTarget)}</strong> por mês.
+            <strong className="text-text-primary">{formatCurrency(targetAmount / monthsToTarget)}</strong> por
+            mês.
           </p>
+        )}
+
+        {boxes.length > 0 && (
+          <Select
+            label="Cofrinho vinculado (opcional)"
+            options={[
+              { value: '', label: 'Nenhum — controlar os depósitos aqui na meta' },
+              ...boxes.map((item) => ({
+                value: item.box.id,
+                label: `${item.box.name} · ${formatCurrency(item.balance)}`,
+              })),
+            ]}
+            value={boxId}
+            onChange={setBoxId}
+            hint={
+              linkedBox
+                ? `O progresso passa a ser o saldo do cofrinho (${formatCurrency(linkedBox.balance)} hoje). "Adicionar valor" na meta guarda direto nele — um lugar só para atualizar.`
+                : 'Se a meta e um cofrinho forem a mesma coisa, vincule: o saldo do cofrinho vira o progresso da meta.'
+            }
+          />
         )}
 
         <Textarea
@@ -145,7 +172,12 @@ export function GoalFormModal({ open, onOpenChange, goal }: GoalFormModalProps) 
         />
 
         <div className="mt-2 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <Button type="button" variant="secondary" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => onOpenChange(false)}
+            disabled={isSubmitting}
+          >
             Cancelar
           </Button>
           <Button type="submit" isLoading={isSubmitting}>

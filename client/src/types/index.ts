@@ -279,6 +279,9 @@ export interface Goal {
   /** Set when the target is reached, so it can be celebrated once and then
    * stop competing for attention on Home. */
   completedAt?: string;
+  /** Cofrinho whose balance IS this goal's progress. While linked, "adicionar
+   * valor" deposits into the pot instead of creating a contribution. */
+  boxId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -319,4 +322,7 @@ export interface GoalProgress {
   monthsLeft: number;
   /** What still needs to go in each month to land on time. */
   monthlyNeeded: number;
+  /** Set when the goal mirrors a cofrinho: `saved` is the pot's balance and
+   * `contributions` lists the pot's movements (read-only here). */
+  linkedBox?: { id: string; name: string; color: BoxColor; cdiPercent: number; balance: number };
 }

@@ -38,8 +38,10 @@ function useInvalidateFinance() {
   return () => {
     queryClient.invalidateQueries({ queryKey: ['finance'] });
     queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-    // Pot balances are derived from investment entries.
+    // Pot balances are derived from investment entries — and so is the
+    // progress of any goal linked to a pot.
     queryClient.invalidateQueries({ queryKey: ['boxes'] });
+    queryClient.invalidateQueries({ queryKey: ['goals'] });
   };
 }
 

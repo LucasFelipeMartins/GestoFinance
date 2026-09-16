@@ -11,8 +11,10 @@ function useInvalidateBoxes() {
   const queryClient = useQueryClient();
   return () => {
     queryClient.invalidateQueries({ queryKey: ['boxes'] });
-    // Removing a pot rewrites its entries' boxId, which the ledger shows.
+    // Removing a pot rewrites its entries' boxId, which the ledger shows,
+    // and unlinks any goal that mirrored it.
     queryClient.invalidateQueries({ queryKey: ['finance'] });
+    queryClient.invalidateQueries({ queryKey: ['goals'] });
   };
 }
 

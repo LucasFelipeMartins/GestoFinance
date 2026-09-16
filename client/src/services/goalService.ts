@@ -9,6 +9,7 @@ export interface GoalCreatePayload {
   targetDate: string;
   notes?: string;
   completedAt?: string;
+  boxId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -53,9 +54,7 @@ export const goalService = {
   /** Goals and deposits come back together: progress is meaningless without
    * both, so one round trip keeps them from arriving out of step. */
   async list(): Promise<{ goals: Goal[]; contributions: GoalContribution[] }> {
-    const { data } = await api.get<{ goals: ApiGoal[]; contributions: ApiGoalContribution[] }>(
-      '/goals'
-    );
+    const { data } = await api.get<{ goals: ApiGoal[]; contributions: ApiGoalContribution[] }>('/goals');
     return {
       goals: data.goals.map(goalFromApi),
       contributions: data.contributions.map(contributionFromApi),
@@ -84,10 +83,7 @@ export const goalService = {
     return contributionFromApi(data.contribution);
   },
 
-  async updateContribution(
-    id: string,
-    payload: GoalContributionUpdatePayload
-  ): Promise<GoalContribution> {
+  async updateContribution(id: string, payload: GoalContributionUpdatePayload): Promise<GoalContribution> {
     const { data } = await api.put<{ contribution: ApiGoalContribution }>(
       `/goals/contributions/${id}`,
       payload

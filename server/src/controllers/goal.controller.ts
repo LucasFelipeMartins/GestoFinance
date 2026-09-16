@@ -34,7 +34,7 @@ export const createGoal = asyncHandler(async (req: Request, res: Response) => {
     return;
   }
 
-  const goal = await Goal.create({ ...data, userId: req.userId });
+  const goal = await Goal.create({ ...data, boxId: data.boxId || undefined, userId: req.userId });
   res.status(201).json({ goal: goal.toObject() });
 });
 
@@ -52,6 +52,7 @@ export const updateGoal = asyncHandler(async (req: Request, res: Response) => {
   }
 
   Object.assign(goal, data);
+  if (data.boxId === '') goal.boxId = undefined;
   await goal.save();
   res.json({ goal: goal.toObject() });
 });

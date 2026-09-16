@@ -8,6 +8,7 @@ import {
   Pencil,
   Trash2,
   TrendingUp,
+  Flag,
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -15,9 +16,10 @@ import { ActionsMenu } from '@/components/ui/ActionsMenu';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { useBoxes, useDeleteBox } from '@/hooks/useBoxes';
+import { useGoals } from '@/hooks/useGoals';
 import { useToast } from '@/context/ToastContext';
 import { getApiErrorMessage } from '@/services/api';
-import { BoxSummary, InvestmentBox } from '@/types';
+import { BoxSummary, GoalProgress, InvestmentBox } from '@/types';
 import { estimateBoxMonthlyYield, readStoredAnnualCdi } from '@/utils/finance';
 import { formatCurrency, formatRelativeDate } from '@/utils/formatters';
 import { SimulatorSeed } from '@/components/finance/InvestmentSimulator';
@@ -38,6 +40,7 @@ interface BoxesPanelProps {
  */
 export function BoxesPanel({ totalInvested, onSimulate }: BoxesPanelProps) {
   const { data: boxes, isLoading } = useBoxes();
+  const goals = useGoals().data ?? [];
   const deleteBox = useDeleteBox();
   const toast = useToast();
   const annualCdi = readStoredAnnualCdi();
@@ -103,6 +106,7 @@ export function BoxesPanel({ totalInvested, onSimulate }: BoxesPanelProps) {
               key={summary.box.id}
               summary={summary}
               monthlyYield={estimateBoxMonthlyYield(summary.balance, summary.box.cdiPercent, annualCdi)}
+              linkedGoal={goals.find((p) => p.goal.boxId === summary.box.id)}
               onDeposit={() => setMove({ summary, mode: 'deposit' })}
               onWithdraw={() => setMove({ summary, mode: 'withdraw' })}
               onSimulate={() =>
@@ -169,6 +173,7 @@ export function BoxesPanel({ totalInvested, onSimulate }: BoxesPanelProps) {
 interface BoxCardProps {
   summary: BoxSummary;
   monthlyYield: number;
+  linkedGoal?: GoalProgress;
   onDeposit: () => void;
   onWithdraw: () => void;
   onSimulate: () => void;
@@ -179,6 +184,7 @@ interface BoxCardProps {
 function BoxCard({
   summary,
   monthlyYield,
+  linkedGoal,
   onDeposit,
   onWithdraw,
   onSimulate,
@@ -224,6 +230,13 @@ function BoxCard({
       <div>
         <p className="text-caption font-semibold uppercase tracking-wide text-text-secondary">Guardado</p>
         <p className="text-h2 tabular-nums text-text-primary">{formatCurrency(balance)}</p>
+        {linkedGoal && (
+          <p className="mt-0.5 flex items-center gap-1 text-caption text-text-secondary">
+            <Flag size={13} style={{ color: palette.main }} />
+            Meta "{linkedGoal.goal.title}": {Math.round(linkedGoal.percent * 100)}% de{' '}
+            {formatCurrency(linkedGoal.goal.targetAmount)}
+          </p>
+        )}
         <p className="mt-0.5 flex items-center gap-1 text-caption text-text-secondary">
           <TrendingUp size={13} style={{ color: palette.main }} />
           {balance > 0

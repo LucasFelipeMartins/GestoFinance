@@ -1,6 +1,8 @@
 import { db, LocalGoal, LocalGoalContribution } from '@/db/schema';
 import { enqueueOutbox, cancelPendingCreate } from '@/db/outbox';
 import { Goal, GoalContribution, GoalProgress } from '@/types';
+
+type LinkedBox = NonNullable<GoalProgress['linkedBox']>;
 import { GoalCreatePayload, GoalContributionCreatePayload } from '@/services/goalService';
 
 function toGoal(row: LocalGoal): Goal {
@@ -47,18 +49,66 @@ export interface GoalFormInput {
   /** From an <input type="date">, or an ISO string. */
   targetDate: string;
   notes?: string;
+  /** Cofrinho to mirror; '' or undefined = none. */
+  boxId?: string;
+}
+
+/**
+ * Every cofrinho with its balance and movements, read straight from the
+ * local tables. A goal linked to a pot takes its progress from here — the
+ * balance is the goal's `saved`, the movements are what it lists as
+ * deposits.
+ */
+async function loadLinkedBoxes(): Promise<Map<string, LinkedBox & { movements: GoalContribution[] }>> {
+  const [boxes, entries] = await Promise.all([
+    db.investmentBoxes.toArray(),
+    db.finance.where('kind').equals('investment').toArray(),
+  ]);
+  const result = new Map<string, LinkedBox & { movements: GoalContribution[] }>();
+  for (const box of boxes) {
+    result.set(box.id, {
+      id: box.id,
+      name: box.name,
+      color: box.color,
+      cdiPercent: box.cdiPercent,
+      balance: 0,
+      movements: [],
+    });
+  }
+  for (const entry of entries) {
+    const box = entry.boxId ? result.get(entry.boxId) : undefined;
+    if (!box) continue;
+    box.balance += entry.amount;
+    box.movements.push({
+      id: entry.id,
+      goalId: '',
+      amount: entry.amount,
+      date: entry.date.toISOString(),
+      note: entry.description,
+      createdAt: entry.createdAt.toISOString(),
+      updatedAt: entry.updatedAt.toISOString(),
+    });
+  }
+  return result;
 }
 
 function monthsBetween(from: Date, to: Date): number {
   return (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth());
 }
 
-/** Folds a goal's deposits into the numbers every view renders. */
-export function buildProgress(goal: Goal, contributions: GoalContribution[]): GoalProgress {
-  const sorted = [...contributions].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-  );
-  const saved = sorted.reduce((total, c) => total + c.amount, 0);
+/**
+ * Folds a goal's deposits into the numbers every view renders. With a
+ * linked cofrinho the pot is the source of truth: its balance is what was
+ * saved and its movements are the deposits shown.
+ */
+export function buildProgress(
+  goal: Goal,
+  contributions: GoalContribution[],
+  linked?: LinkedBox & { movements: GoalContribution[] }
+): GoalProgress {
+  const source = linked ? linked.movements.map((m) => ({ ...m, goalId: goal.id })) : contributions;
+  const sorted = [...source].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const saved = linked ? linked.balance : sorted.reduce((total, c) => total + c.amount, 0);
   const remaining = Math.max(0, goal.targetAmount - saved);
   const isComplete = saved >= goal.targetAmount;
 
@@ -77,6 +127,15 @@ export function buildProgress(goal: Goal, contributions: GoalContribution[]): Go
     monthsLeft,
     // Answers the question the prazo actually raises: "am I saving enough?"
     monthlyNeeded: isComplete ? 0 : monthsLeft <= 0 ? remaining : remaining / monthsLeft,
+    linkedBox: linked
+      ? {
+          id: linked.id,
+          name: linked.name,
+          color: linked.color,
+          cdiPercent: linked.cdiPercent,
+          balance: linked.balance,
+        }
+      : undefined,
   };
 }
 
@@ -87,9 +146,10 @@ export function buildProgress(goal: Goal, contributions: GoalContribution[]): Go
  * adding money while offline both survive — see the GoalContribution doc.
  */
 async function list(): Promise<GoalProgress[]> {
-  const [goals, contributions] = await Promise.all([
+  const [goals, contributions, linkedBoxes] = await Promise.all([
     db.goals.toArray(),
     db.goalContributions.toArray(),
+    loadLinkedBoxes(),
   ]);
 
   const byGoal = new Map<string, GoalContribution[]>();
@@ -102,7 +162,11 @@ async function list(): Promise<GoalProgress[]> {
 
   const progress = goals.map((row) => {
     const goal = toGoal(row);
-    return buildProgress(goal, byGoal.get(goal.id) ?? []);
+    return buildProgress(
+      goal,
+      byGoal.get(goal.id) ?? [],
+      goal.boxId ? linkedBoxes.get(goal.boxId) : undefined
+    );
   });
 
   // Open goals lead; among them, the soonest prazo first.
@@ -116,7 +180,9 @@ async function get(id: string): Promise<GoalProgress | undefined> {
   const row = await db.goals.get(id);
   if (!row) return undefined;
   const contributions = await db.goalContributions.where('goalId').equals(id).toArray();
-  return buildProgress(toGoal(row), contributions.map(toContribution));
+  const goal = toGoal(row);
+  const linked = goal.boxId ? (await loadLinkedBoxes()).get(goal.boxId) : undefined;
+  return buildProgress(goal, contributions.map(toContribution), linked);
 }
 
 function goalPayload(row: LocalGoal) {
@@ -127,6 +193,7 @@ function goalPayload(row: LocalGoal) {
     // '' rather than undefined so a cleared note survives JSON — an omitted
     // key reads on the server as "leave it as is".
     notes: row.notes ?? '',
+    boxId: row.boxId ?? '',
     ...(row.completedAt ? { completedAt: row.completedAt.toISOString() } : {}),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -140,6 +207,7 @@ async function create(input: GoalFormInput): Promise<Goal> {
     targetAmount: input.targetAmount,
     targetDate: new Date(input.targetDate),
     notes: input.notes || undefined,
+    boxId: input.boxId || undefined,
     createdAt: now,
     updatedAt: now,
   };
@@ -164,12 +232,35 @@ async function update(id: string, input: GoalFormInput): Promise<Goal> {
     targetAmount: input.targetAmount,
     targetDate: new Date(input.targetDate),
     notes: input.notes || undefined,
+    boxId: 'boxId' in input ? input.boxId || undefined : existing.boxId,
     updatedAt: new Date(),
   };
 
   await db.goals.put(row);
   await enqueueOutbox('goal', id, 'update', goalPayload(row));
+  await syncCompletion(id);
   return toGoal(row);
+}
+
+/** Points a goal at a cofrinho (or clears the link with undefined). */
+async function setLinkedBox(goalId: string, boxId: string | undefined): Promise<void> {
+  const existing = await db.goals.get(goalId);
+  if (!existing || (existing.boxId ?? undefined) === boxId) return;
+  const row: LocalGoal = { ...existing, boxId, updatedAt: new Date() };
+  await db.goals.put(row);
+  await enqueueOutbox('goal', goalId, 'update', goalPayload(row));
+  await syncCompletion(goalId);
+}
+
+/** Goals mirroring a given cofrinho (normally zero or one). */
+async function goalsLinkedTo(boxId: string): Promise<Goal[]> {
+  const rows = await db.goals.filter((row) => row.boxId === boxId).toArray();
+  return rows.map(toGoal);
+}
+
+/** After money moved in a pot: linked goals may have just been reached (or reopened). */
+async function syncCompletionForBox(boxId: string): Promise<void> {
+  for (const goal of await goalsLinkedTo(boxId)) await syncCompletion(goal.id);
 }
 
 async function remove(id: string): Promise<void> {
@@ -302,6 +393,9 @@ export const goalRepository = {
   create,
   update,
   remove,
+  setLinkedBox,
+  goalsLinkedTo,
+  syncCompletionForBox,
   addContribution,
   removeContribution,
   upsertGoalFromServer,

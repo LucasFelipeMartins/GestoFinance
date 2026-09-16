@@ -230,6 +230,12 @@ function GoalCard({
             >
               {deadlineLabel} · {formatDate(goal.targetDate)}
             </p>
+            {progress.linkedBox && (
+              <p className="mt-0.5 flex items-center gap-1 truncate text-caption text-sage-green">
+                <PiggyBank size={12} className="shrink-0" />
+                Cofrinho: {progress.linkedBox.name}
+              </p>
+            )}
           </div>
           <div className="shrink-0 text-right">
             <p className="text-h3 tabular-nums text-text-primary">{formatCurrency(progress.saved)}</p>

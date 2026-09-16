@@ -3,7 +3,9 @@ import { Check, PiggyBank } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Input, Textarea, FieldLabel } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
 import { useCreateBox, useUpdateBox } from '@/hooks/useBoxes';
+import { useGoals, useLinkGoalToBox } from '@/hooks/useGoals';
 import { useToast } from '@/context/ToastContext';
 import { getApiErrorMessage } from '@/services/api';
 import { BOX_COLORS, BoxColor, InvestmentBox } from '@/types';
@@ -30,7 +32,15 @@ export function BoxFormModal({ open, onOpenChange, box }: BoxFormModalProps) {
   const [notes, setNotes] = useState(box?.notes ?? '');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const isSubmitting = createBox.isPending || updateBox.isPending;
+  // Goals that could mirror this pot: open ones, plus whichever is already
+  // linked to it (so editing shows the current choice).
+  const goals = useGoals().data ?? [];
+  const linkGoal = useLinkGoalToBox();
+  const currentGoalId = box ? (goals.find((p) => p.goal.boxId === box.id)?.goal.id ?? '') : '';
+  const [goalId, setGoalId] = useState(currentGoalId);
+  const goalOptions = goals.filter((p) => !p.isComplete || p.goal.id === currentGoalId);
+
+  const isSubmitting = createBox.isPending || updateBox.isPending || linkGoal.isPending;
 
   const submit = async () => {
     const nextErrors: Record<string, string> = {};
@@ -45,8 +55,15 @@ export function BoxFormModal({ open, onOpenChange, box }: BoxFormModalProps) {
 
     const input = { name: trimmed, cdiPercent: rate, color, notes: notes.trim() || undefined };
     try {
-      if (isEditing && box) await updateBox.mutateAsync({ id: box.id, input });
-      else await createBox.mutateAsync(input);
+      const saved =
+        isEditing && box
+          ? await updateBox.mutateAsync({ id: box.id, input })
+          : await createBox.mutateAsync(input);
+      if (goalId !== currentGoalId) {
+        // One goal per pot: unlink the previous one, then point the chosen one here.
+        if (currentGoalId) await linkGoal.mutateAsync({ goalId: currentGoalId, boxId: undefined });
+        if (goalId) await linkGoal.mutateAsync({ goalId, boxId: saved.id });
+      }
       toast.success(
         isEditing ? 'Cofrinho atualizado.' : 'Cofrinho criado! Agora é só guardar dinheiro nele.'
       );
@@ -139,6 +156,25 @@ export function BoxFormModal({ open, onOpenChange, box }: BoxFormModalProps) {
             })}
           </div>
         </div>
+
+        {goalOptions.length > 0 && (
+          <Select
+            label="Meta vinculada (opcional)"
+            options={[
+              { value: '', label: 'Nenhuma' },
+              ...goalOptions.map((p) => ({
+                value: p.goal.id,
+                label:
+                  p.goal.boxId && p.goal.boxId !== box?.id
+                    ? `${p.goal.title} (hoje ligada a outro cofrinho)`
+                    : p.goal.title,
+              })),
+            ]}
+            value={goalId}
+            onChange={setGoalId}
+            hint="O saldo deste cofrinho vira o progresso da meta; guardar aqui atualiza a meta sozinho."
+          />
+        )}
 
         <Textarea
           label="Observações (opcional)"

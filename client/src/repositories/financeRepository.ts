@@ -3,6 +3,7 @@ import { enqueueOutbox, cancelPendingCreate } from '@/db/outbox';
 import { FinanceEntry, FinanceKind, PaymentMethod } from '@/types';
 import { FinanceListParams, FinanceCreatePayload } from '@/services/financeService';
 import { parseDateInput } from '@/utils/formatters';
+import { goalRepository } from './goalRepository';
 
 function toEntry(row: LocalFinanceEntry): FinanceEntry {
   return {
@@ -229,6 +230,7 @@ async function create(input: FinanceFormInput): Promise<FinanceEntry> {
     ...toPayload(row),
   } satisfies FinanceCreatePayload);
 
+  if (row.boxId) await goalRepository.syncCompletionForBox(row.boxId);
   return toEntry(row);
 }
 
@@ -266,6 +268,9 @@ async function update(id: string, input: Partial<FinanceFormInput>): Promise<Fin
   await db.finance.put(row);
   await enqueueOutbox('finance', id, 'update', toPayload(row));
 
+  for (const boxId of new Set([existing.boxId, row.boxId])) {
+    if (boxId) await goalRepository.syncCompletionForBox(boxId);
+  }
   return toEntry(row);
 }
 

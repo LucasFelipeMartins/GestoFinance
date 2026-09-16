@@ -21,6 +21,9 @@ export interface GoalDocument extends Document {
   /** Set when the goal is reached, so it can be celebrated once and then
    * stop competing for attention on Home. */
   completedAt?: Date;
+  /** Cofrinho (InvestmentBox.localId) whose balance IS this goal's progress.
+   * While linked, money goes into the pot and the goal just mirrors it. */
+  boxId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -33,6 +36,7 @@ const goalSchema = new Schema<GoalDocument>({
   targetDate: { type: Date, required: true },
   notes: { type: String, trim: true },
   completedAt: { type: Date },
+  boxId: { type: String },
   createdAt: { type: Date, required: true },
   updatedAt: { type: Date, required: true },
 });
@@ -77,7 +81,4 @@ const goalContributionSchema = new Schema<GoalContributionDocument>({
 goalContributionSchema.index({ userId: 1, localId: 1 }, { unique: true });
 goalContributionSchema.index({ userId: 1, goalId: 1 });
 
-export const GoalContribution = model<GoalContributionDocument>(
-  'GoalContribution',
-  goalContributionSchema
-);
+export const GoalContribution = model<GoalContributionDocument>('GoalContribution', goalContributionSchema);
