@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Servidor (tipos)
+        run: npx tsc --noEmit -p server
+      - name: Cliente (tipos + build)
+        run: npm run build -w client
+      - name: Vulnerabilidades altas/críticas
+        run: npm audit --omit=dev --audit-level=high

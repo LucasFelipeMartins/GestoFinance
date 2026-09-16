@@ -4,7 +4,12 @@ updates:
     directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
+    # Só correções e versões menores, num único PR semanal. Versões maiores
+    # (React 19, Mongoose 9, Vite 8...) são migrações e ficam para decisão manual.
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
