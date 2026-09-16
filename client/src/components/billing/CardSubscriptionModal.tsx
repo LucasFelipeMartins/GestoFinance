@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Loader2, ShieldCheck } from 'lucide-react';
+import { EyeOff, Loader2, Lock, RefreshCw, ShieldCheck } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { formatCurrency } from '@/utils/formatters';
 
@@ -154,20 +154,63 @@ export function CardSubscriptionModal({
       size="lg"
       preventOutsideClose={submitting}
     >
+      {/* Who is actually handling the card — said up front, with their mark. */}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-input border border-border bg-surface-2 px-4 py-3">
+        <div className="flex items-center gap-3">
+          <span className="flex h-9 items-center rounded-[10px] bg-white px-2.5 shadow-sm">
+            <img src="/mercado-pago.png" alt="Mercado Pago" className="h-6 w-auto" width={92} height={24} />
+          </span>
+          <div className="leading-tight">
+            <p className="text-body-strong text-text-primary">Pagamento processado pelo Mercado Pago</p>
+            <p className="text-caption text-text-secondary">
+              Formulário e criptografia do próprio Mercado Pago
+            </p>
+          </div>
+        </div>
+        <span className="inline-flex items-center gap-1.5 rounded-badge bg-tint px-2.5 py-1 text-caption font-semibold text-sage-green">
+          <Lock size={13} />
+          Conexão segura
+        </span>
+      </div>
+
       {loading && (
         <div className="flex items-center gap-3 py-6 text-body text-text-secondary">
           <Loader2 size={20} className="animate-spin text-sage-green" />
-          Carregando formulário seguro do Mercado Pago…
+          Carregando o formulário seguro do Mercado Pago…
         </div>
       )}
       {error && <p className="mb-3 rounded-input bg-danger/10 px-4 py-3 text-body text-danger">{error}</p>}
       {/* The Brick renders itself here (inside Mercado Pago's own secure iframes). */}
       <div id={CONTAINER_ID} className={loading ? 'hidden' : ''} />
-      <p className="mt-3 flex items-start gap-2 text-caption text-text-secondary">
-        <ShieldCheck size={15} className="mt-0.5 shrink-0 text-sage-green" />
-        Os dados do cartão vão direto para o Mercado Pago; o GestorFinance não vê nem guarda o número. Cancele
-        quando quiser na página Assinatura — sem fidelidade.
-      </p>
+
+      <div className="mt-4 rounded-input border border-dashed border-border px-4 py-3">
+        <p className="text-caption font-semibold uppercase tracking-wide text-text-secondary">
+          O que acontece com seus dados
+        </p>
+        <ul className="mt-2 flex flex-col gap-2 text-caption text-text-primary">
+          <li className="flex items-start gap-2">
+            <ShieldCheck size={15} className="mt-0.5 shrink-0 text-sage-green" />
+            <span>
+              Os campos do cartão acima pertencem ao Mercado Pago: o número, a validade e o código vão
+              criptografados direto para eles, sem passar pelo GestorFinance.
+            </span>
+          </li>
+          <li className="flex items-start gap-2">
+            <EyeOff size={15} className="mt-0.5 shrink-0 text-sage-green" />
+            <span>
+              O GestorFinance <strong>não vê, não recebe e não guarda</strong> os dados do seu cartão — só é
+              avisado se a cobrança foi autorizada ou não.
+            </span>
+          </li>
+          <li className="flex items-start gap-2">
+            <RefreshCw size={15} className="mt-0.5 shrink-0 text-sage-green" />
+            <span>
+              {formatCurrency(amount)} agora e a cada {periodDays} dias. Cancele quando quiser na página
+              Assinatura, sem multa nem fidelidade.
+            </span>
+          </li>
+        </ul>
+      </div>
     </Modal>
   );
 }
