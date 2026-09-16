@@ -18,6 +18,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
+import { CardSubscriptionModal, CardBrickFormData } from '@/components/billing/CardSubscriptionModal';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { useLogoutConfirm } from '@/hooks/useLogoutConfirm';
@@ -46,8 +47,9 @@ export default function Subscription() {
   const { requestLogout, dialog } = useLogoutConfirm();
   const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [redirecting, setRedirecting] = useState<'card' | 'pix' | null>(null);
+  const [redirecting, setRedirecting] = useState(false);
   const [confirming, setConfirming] = useState<ConfirmState>('idle');
+  const [cardOpen, setCardOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelling, setCancelling] = useState(false);
 
@@ -133,14 +135,35 @@ export default function Subscription() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const pay = async (method: 'card' | 'pix') => {
-    setRedirecting(method);
+  const payWithPix = async () => {
+    setRedirecting(true);
     try {
-      const url = method === 'card' ? await billingService.subscribe() : await billingService.checkout();
-      window.location.assign(url);
+      window.location.assign(await billingService.checkout());
     } catch (error) {
       toast.error(getApiErrorMessage(error, 'Não foi possível abrir o pagamento.'));
-      setRedirecting(null);
+      setRedirecting(false);
+    }
+  };
+
+  // Card token from the Brick -> subscription on the server. Errors are
+  // rethrown with a readable message so the modal can show them.
+  const subscribeWithCard = async (formData: CardBrickFormData) => {
+    try {
+      const result = await billingService.subscribe(formData.token);
+      applyAccess(result.access);
+      setCardOpen(false);
+      if (result.subscriptionStatus === 'authorized') {
+        setConfirming('subscribed');
+        toast.success('Renovação automática ativada!');
+        // The first charge can take a few seconds to show up on the plan.
+        if (result.paymentsApplied === 0) setTimeout(() => refreshAccess(), 4000);
+      } else {
+        setConfirming('pending');
+      }
+    } catch (error) {
+      throw new Error(
+        getApiErrorMessage(error, 'O Mercado Pago não aceitou o cartão. Confira os dados e tente de novo.')
+      );
     }
   };
 
@@ -284,9 +307,8 @@ export default function Subscription() {
           {plan.canPay && !renewing && (
             <div className="mt-6 flex flex-col gap-3">
               <Button
-                onClick={() => pay('card')}
-                isLoading={redirecting === 'card'}
-                disabled={!access.billingEnabled || redirecting !== null}
+                onClick={() => setCardOpen(true)}
+                disabled={!access.billingEnabled || !access.mpPublicKey || redirecting}
                 leftIcon={<CreditCard size={18} />}
                 className="w-full"
               >
@@ -294,9 +316,9 @@ export default function Subscription() {
               </Button>
               <Button
                 variant="secondary"
-                onClick={() => pay('pix')}
-                isLoading={redirecting === 'pix'}
-                disabled={!access.billingEnabled || redirecting !== null}
+                onClick={payWithPix}
+                isLoading={redirecting}
+                disabled={!access.billingEnabled || redirecting}
                 leftIcon={<QrCode size={18} />}
                 className="w-full"
               >
@@ -378,6 +400,18 @@ export default function Subscription() {
           </div>
         </Card>
       </div>
+
+      {access.mpPublicKey && user && (
+        <CardSubscriptionModal
+          open={cardOpen}
+          onOpenChange={setCardOpen}
+          publicKey={access.mpPublicKey}
+          amount={access.priceMonthly}
+          periodDays={access.periodDays}
+          email={user.email}
+          onSubmit={subscribeWithCard}
+        />
+      )}
 
       <Modal
         open={cancelOpen}

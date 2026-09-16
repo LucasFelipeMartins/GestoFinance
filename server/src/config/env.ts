@@ -76,6 +76,9 @@ export const env = {
 export const billingEnv = {
   /** Mercado Pago "Access Token" (Produção ou Teste) from the developer panel. */
   mpAccessToken: optional('MP_ACCESS_TOKEN'),
+  /** Mercado Pago "Public Key" of the same credential set — the card form
+   * in the browser needs it to tokenise the card. Safe to expose. */
+  mpPublicKey: optional('MP_PUBLIC_KEY'),
   /**
    * The webhook "Assinatura secreta" shown in the Mercado Pago panel.
    * Mandatory in production once billing is on: without it notifications

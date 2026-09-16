@@ -49,6 +49,8 @@ export interface AccessInfo {
   trialDays: number;
   /** False until MP_ACCESS_TOKEN is set — everybody is let in meanwhile. */
   billingEnabled: boolean;
+  /** Mercado Pago public key for the in-page card form; absent = card unavailable. */
+  mpPublicKey?: string;
   subscription?: SubscriptionInfo;
   cancelPreview?: CancelPreview;
 }
@@ -107,6 +109,7 @@ export async function computeAccess(user: UserDocument): Promise<AccessInfo> {
     periodDays: billingEnv.periodDays,
     trialDays: billingEnv.trialDays,
     billingEnabled: isBillingEnabled(),
+    mpPublicKey: billingEnv.mpPublicKey,
     subscription: describeSubscription(user),
   };
 
@@ -242,12 +245,23 @@ export async function createCheckout(user: UserDocument, appUrl: string): Promis
 }
 
 /**
- * The card subscription (Mercado Pago "assinatura"/preapproval): the person
- * authorises the card once and Mercado Pago charges one period every month
- * until it is cancelled. Each charge arrives as a normal `payment`
- * notification and extends access like any other payment.
+ * The card subscription (Mercado Pago "assinatura"/preapproval). The card is
+ * typed on our own page (Mercado Pago's Card Payment Brick, which never
+ * hands us the number — only a one-shot `card_token_id`), and the
+ * subscription is created already authorised: Mercado Pago charges the
+ * first period right away and then one period every month until cancelled.
+ * Every charge arrives as a normal `payment` notification and extends
+ * access like any other payment.
+ *
+ * Doing it this way, instead of sending the person to Mercado Pago's
+ * subscription page, avoids the requirement there that the buyer log into a
+ * Mercado Pago account with exactly the same e-mail as our account.
  */
-export async function createSubscription(user: UserDocument, appUrl: string): Promise<{ url: string }> {
+export async function createSubscription(
+  user: UserDocument,
+  cardTokenId: string,
+  appUrl: string
+): Promise<{ status: string; applied: number }> {
   if (user.subscriptionId && user.subscriptionStatus === 'authorized') {
     throw ApiError.badRequest('Sua renovação automática já está ativa.');
   }
@@ -258,20 +272,21 @@ export async function createSubscription(user: UserDocument, appUrl: string): Pr
         reason: `GestorFinance — plano mensal (${billingEnv.periodDays} dias)`,
         external_reference: String(user._id),
         payer_email: billingEnv.testPayerEmail ?? user.email,
+        card_token_id: cardTokenId,
         auto_recurring: {
           frequency: 1,
           frequency_type: 'months',
           transaction_amount: price(),
           currency_id: 'BRL',
         },
-        back_url: `${appUrl}/assinatura?status=subscribed`,
-        status: 'pending',
+        back_url: `${appUrl}/assinatura`,
+        status: 'authorized',
       },
     })
   );
 
-  if (!result.id || !result.init_point) {
-    throw new ApiError(502, 'O Mercado Pago não devolveu o link da assinatura.');
+  if (!result.id) {
+    throw new ApiError(502, 'O Mercado Pago não devolveu a assinatura.');
   }
 
   user.subscriptionId = result.id;
@@ -279,7 +294,10 @@ export async function createSubscription(user: UserDocument, appUrl: string): Pr
   user.subscriptionCancelledAt = undefined;
   await user.save();
 
-  return { url: result.init_point };
+  // The first charge is usually visible immediately; if not, the webhook
+  // (or the next status refresh) applies it.
+  const applied = result.status === 'authorized' ? await applyRecentPayments(user) : 0;
+  return { status: result.status ?? 'pending', applied };
 }
 
 /**

@@ -50,12 +50,22 @@ export const checkout = asyncHandler(async (req: Request, res: Response) => {
   res.json({ url });
 });
 
+const subscribeSchema = z.object({
+  /** One-shot card token from Mercado Pago's Brick — never the card itself. */
+  cardTokenId: z.string().trim().min(8, 'Cartão não informado.').max(128),
+});
+
 /** Card: subscription that renews every period until cancelled. */
 export const subscribe = asyncHandler(async (req: Request, res: Response) => {
+  const { cardTokenId } = subscribeSchema.parse(req.body);
   const user = await loadUser(req);
   assertPayable((await computeAccess(user)).reason);
-  const { url } = await createSubscription(user, resolveAppUrl(req));
-  res.json({ url });
+  const result = await createSubscription(user, cardTokenId, resolveAppUrl(req));
+  res.json({
+    subscriptionStatus: result.status,
+    paymentsApplied: result.applied,
+    access: await fullAccess(req),
+  });
 });
 
 const confirmSchema = z.object({

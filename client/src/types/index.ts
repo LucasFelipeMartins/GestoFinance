@@ -49,6 +49,8 @@ export interface AccessInfo {
   periodDays: number;
   trialDays: number;
   billingEnabled: boolean;
+  /** Mercado Pago public key for the in-page card form; absent = card unavailable. */
+  mpPublicKey?: string;
   subscription?: SubscriptionInfo;
   cancelPreview?: CancelPreview;
 }

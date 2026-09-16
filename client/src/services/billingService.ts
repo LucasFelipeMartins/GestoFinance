@@ -21,10 +21,16 @@ export const billingService = {
     return data.url;
   },
 
-  /** Card with automatic renewal: returns the Mercado Pago authorisation URL. */
-  async subscribe(): Promise<string> {
-    const { data } = await api.post<{ url: string }>('/billing/subscribe');
-    return data.url;
+  /** Card with automatic renewal: creates the subscription from the Brick's card token. */
+  async subscribe(
+    cardTokenId: string
+  ): Promise<{ subscriptionStatus: string; paymentsApplied: number; access: AccessInfo }> {
+    const { data } = await api.post<{
+      subscriptionStatus: string;
+      paymentsApplied: number;
+      access: AccessInfo;
+    }>('/billing/subscribe', { cardTokenId });
+    return data;
   },
 
   /** Back from Mercado Pago: asks the server to look the payment up. */
