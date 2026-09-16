@@ -3,6 +3,7 @@ import { Table, Thead, Tbody, Tr, Th, Td } from '@/components/ui/Table';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { Badge } from '@/components/ui/Badge';
 import { ActionsMenu, ActionsMenuItem } from '@/components/ui/ActionsMenu';
+import { useBoxes } from '@/hooks/useBoxes';
 import { FinanceEntry, FinanceKind } from '@/types';
 import { FINANCE_META } from '@/utils/financeMeta';
 import {
@@ -71,7 +72,10 @@ export function InstallmentProgress({ entry }: { entry: FinanceEntry }) {
 
 export function buildActions(
   entry: FinanceEntry,
-  handlers: Pick<FinanceEntryListProps, 'onEdit' | 'onDelete' | 'onTogglePaid' | 'onUndoInstallment' | 'onSimulate' | 'onOpenClient'>
+  handlers: Pick<
+    FinanceEntryListProps,
+    'onEdit' | 'onDelete' | 'onTogglePaid' | 'onUndoInstallment' | 'onSimulate' | 'onOpenClient'
+  >
 ): ActionsMenuItem[] {
   const { onEdit, onDelete, onTogglePaid, onUndoInstallment, onSimulate, onOpenClient } = handlers;
 
@@ -116,7 +120,11 @@ export function buildActions(
     separatorBefore: items.length > 0,
   });
   if (onSimulate && entry.kind === 'investment') {
-    items.push({ label: 'Simular rendimento', icon: <Calculator size={17} />, onSelect: () => onSimulate(entry) });
+    items.push({
+      label: 'Simular rendimento',
+      icon: <Calculator size={17} />,
+      onSelect: () => onSimulate(entry),
+    });
   }
   items.push({
     label: 'Remover',
@@ -129,6 +137,12 @@ export function buildActions(
 }
 
 /** The checkbox label for a despesa row, spelled out for screen readers. */
+/** Name of the cofrinho an investimento sits in, for the row badge. */
+export function useBoxName(): (entry: FinanceEntry) => string | undefined {
+  const boxes = useBoxes().data;
+  return (entry) => (entry.boxId ? boxes?.find((item) => item.box.id === entry.boxId)?.box.name : undefined);
+}
+
 export function paidToggleLabel(entry: FinanceEntry): string {
   const next = nextInstallment(entry);
   if (next && next.total > 1) {
@@ -153,6 +167,7 @@ export function FinanceEntryTable({
   const isInvestment = kind === 'investment';
   const isIncome = kind === 'income';
   const handlers = { onEdit, onDelete, onTogglePaid, onUndoInstallment, onSimulate, onOpenClient };
+  const boxName = useBoxName();
 
   return (
     <Table>
@@ -228,11 +243,14 @@ export function FinanceEntryTable({
               )}
 
               <Td>
-                {entry.category ? (
-                  <Badge tone="neutral">{entry.category}</Badge>
-                ) : (
-                  <span className="text-body text-text-secondary">—</span>
-                )}
+                <div className="flex flex-wrap gap-1">
+                  {boxName(entry) && <Badge tone="info">{boxName(entry)}</Badge>}
+                  {entry.category ? (
+                    <Badge tone="neutral">{entry.category}</Badge>
+                  ) : (
+                    !boxName(entry) && <span className="text-body text-text-secondary">—</span>
+                  )}
+                </div>
               </Td>
 
               <Td>
@@ -262,7 +280,9 @@ export function FinanceEntryTable({
               {isExpense && (
                 <Td>
                   <div className="flex max-w-[240px] flex-col gap-1">
-                    <span className="text-caption text-text-secondary">{describePayment(entry, formatCurrency)}</span>
+                    <span className="text-caption text-text-secondary">
+                      {describePayment(entry, formatCurrency)}
+                    </span>
                     {plan && <InstallmentProgress entry={entry} />}
                   </div>
                 </Td>

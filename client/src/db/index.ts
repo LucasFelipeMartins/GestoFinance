@@ -15,6 +15,7 @@ export async function clearLocalData(): Promise<void> {
     db.finance.clear(),
     db.goals.clear(),
     db.goalContributions.clear(),
+    db.investmentBoxes.clear(),
     db.outbox.clear(),
     db.meta.clear(),
   ]);

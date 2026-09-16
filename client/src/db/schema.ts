@@ -1,7 +1,16 @@
 import Dexie, { Table } from 'dexie';
-import { Client, Task, FinanceEntry, Goal, GoalContribution, Priority, EntityStatus } from '@/types';
+import {
+  Client,
+  Task,
+  FinanceEntry,
+  Goal,
+  GoalContribution,
+  InvestmentBox,
+  Priority,
+  EntityStatus,
+} from '@/types';
 
-export type OutboxEntity = 'client' | 'task' | 'finance' | 'goal' | 'goalContribution';
+export type OutboxEntity = 'client' | 'task' | 'finance' | 'goal' | 'goalContribution' | 'investmentBox';
 export type OutboxType = 'create' | 'update' | 'status' | 'delete';
 
 export interface OutboxEntry {
@@ -24,15 +33,17 @@ export interface MetaEntry {
 
 /** Local rows mirror the API shape but keep dates as real Date objects,
  * which IndexedDB can index directly (range queries, sorting). */
-export interface LocalClient extends Omit<Client, 'createdAt' | 'updatedAt' | 'deliveryDate' | 'completedAt'> {
+export interface LocalClient extends Omit<
+  Client,
+  'createdAt' | 'updatedAt' | 'deliveryDate' | 'completedAt'
+> {
   createdAt: Date;
   updatedAt: Date;
   deliveryDate?: Date;
   completedAt?: Date;
 }
 
-export interface LocalFinanceEntry
-  extends Omit<FinanceEntry, 'date' | 'paidAt' | 'createdAt' | 'updatedAt'> {
+export interface LocalFinanceEntry extends Omit<FinanceEntry, 'date' | 'paidAt' | 'createdAt' | 'updatedAt'> {
   date: Date;
   paidAt?: Date;
   createdAt: Date;
@@ -46,9 +57,13 @@ export interface LocalGoal extends Omit<Goal, 'targetDate' | 'completedAt' | 'cr
   updatedAt: Date;
 }
 
-export interface LocalGoalContribution
-  extends Omit<GoalContribution, 'date' | 'createdAt' | 'updatedAt'> {
+export interface LocalGoalContribution extends Omit<GoalContribution, 'date' | 'createdAt' | 'updatedAt'> {
   date: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface LocalInvestmentBox extends Omit<InvestmentBox, 'createdAt' | 'updatedAt'> {
   createdAt: Date;
   updatedAt: Date;
 }
@@ -68,6 +83,7 @@ class GestorProDB extends Dexie {
   finance!: Table<LocalFinanceEntry, string>;
   goals!: Table<LocalGoal, string>;
   goalContributions!: Table<LocalGoalContribution, string>;
+  investmentBoxes!: Table<LocalInvestmentBox, string>;
   outbox!: Table<OutboxEntry, number>;
   meta!: Table<MetaEntry, string>;
 
@@ -109,6 +125,11 @@ class GestorProDB extends Dexie {
     this.version(6).stores({
       goals: 'id, targetDate, completedAt, updatedAt, createdAt',
       goalContributions: 'id, goalId, date, updatedAt, createdAt',
+    });
+    // v7 adds cofrinhos and indexes finance rows by the pot they sit in.
+    this.version(7).stores({
+      investmentBoxes: 'id, updatedAt, createdAt',
+      finance: 'id, kind, date, clientId, boxId, updatedAt, createdAt, [kind+date]',
     });
   }
 }

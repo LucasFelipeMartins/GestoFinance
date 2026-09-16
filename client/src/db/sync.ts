@@ -4,9 +4,11 @@ import { clientRepository } from '@/repositories/clientRepository';
 import { taskRepository } from '@/repositories/taskRepository';
 import { financeRepository } from '@/repositories/financeRepository';
 import { goalRepository } from '@/repositories/goalRepository';
+import { boxRepository } from '@/repositories/boxRepository';
 import { clientService, ClientCreatePayload, ClientUpdatePayload } from '@/services/clientService';
 import { taskService, TaskCreatePayload, TaskUpdatePayload } from '@/services/taskService';
 import { financeService, FinanceCreatePayload, FinanceUpdatePayload } from '@/services/financeService';
+import { boxService, BoxCreatePayload, BoxUpdatePayload } from '@/services/boxService';
 import {
   goalService,
   GoalCreatePayload,
@@ -74,11 +76,19 @@ async function pushEntry(entry: OutboxEntry): Promise<PushOutcome> {
         const result = await clientService.create(entry.payload as unknown as ClientCreatePayload);
         await clientRepository.replaceLocal(result);
       } else if (entry.type === 'update') {
-        const result = await clientService.update(entry.entityId, entry.payload as unknown as ClientUpdatePayload);
+        const result = await clientService.update(
+          entry.entityId,
+          entry.payload as unknown as ClientUpdatePayload
+        );
         await clientRepository.replaceLocal(result);
       } else if (entry.type === 'status') {
         const payload = entry.payload as { status: EntityStatus; updatedAt: string; completedAt?: string };
-        const result = await clientService.updateStatus(entry.entityId, payload.status, payload.updatedAt, payload.completedAt);
+        const result = await clientService.updateStatus(
+          entry.entityId,
+          payload.status,
+          payload.updatedAt,
+          payload.completedAt
+        );
         await clientRepository.replaceLocal(result);
       } else if (entry.type === 'delete') {
         const payload = entry.payload as { tasksAction?: 'unlink' | 'delete' } | undefined;
@@ -89,11 +99,19 @@ async function pushEntry(entry: OutboxEntry): Promise<PushOutcome> {
         const result = await taskService.create(entry.payload as unknown as TaskCreatePayload);
         await taskRepository.replaceLocal(result);
       } else if (entry.type === 'update') {
-        const result = await taskService.update(entry.entityId, entry.payload as unknown as TaskUpdatePayload);
+        const result = await taskService.update(
+          entry.entityId,
+          entry.payload as unknown as TaskUpdatePayload
+        );
         await taskRepository.replaceLocal(result);
       } else if (entry.type === 'status') {
         const payload = entry.payload as { status: EntityStatus; updatedAt: string; completedAt?: string };
-        const result = await taskService.updateStatus(entry.entityId, payload.status, payload.updatedAt, payload.completedAt);
+        const result = await taskService.updateStatus(
+          entry.entityId,
+          payload.status,
+          payload.updatedAt,
+          payload.completedAt
+        );
         await taskRepository.replaceLocal(result);
       } else if (entry.type === 'delete') {
         await taskService.remove(entry.entityId);
@@ -125,6 +143,16 @@ async function pushEntry(entry: OutboxEntry): Promise<PushOutcome> {
         await goalRepository.replaceGoalLocal(result);
       } else if (entry.type === 'delete') {
         await goalService.remove(entry.entityId);
+      }
+    } else if (entry.entity === 'investmentBox') {
+      if (entry.type === 'create') {
+        const result = await boxService.create(entry.payload as unknown as BoxCreatePayload);
+        await boxRepository.replaceLocal(result);
+      } else if (entry.type === 'update') {
+        const result = await boxService.update(entry.entityId, entry.payload as unknown as BoxUpdatePayload);
+        await boxRepository.replaceLocal(result);
+      } else if (entry.type === 'delete') {
+        await boxService.remove(entry.entityId);
       }
     } else {
       // A deposit. It's its own record, so it pushes independently of its
@@ -187,11 +215,12 @@ async function pushOutbox(): Promise<void> {
 }
 
 async function pullRemote(): Promise<void> {
-  const [serverClients, serverTasks, serverFinance, serverGoals] = await Promise.all([
+  const [serverClients, serverTasks, serverFinance, serverGoals, serverBoxes] = await Promise.all([
     clientService.list(),
     taskService.list(),
     financeService.list(),
     goalService.list(),
+    boxService.list(),
   ]);
 
   for (const client of serverClients) {
@@ -209,6 +238,9 @@ async function pullRemote(): Promise<void> {
   for (const contribution of serverGoals.contributions) {
     await goalRepository.upsertContributionFromServer(contribution);
   }
+  for (const box of serverBoxes) {
+    await boxRepository.upsertFromServer(box);
+  }
 
   // Anything local that's fully synced (no pending outbox entry) but missing
   // from the server was deleted elsewhere — mirror that locally too.
@@ -218,6 +250,7 @@ async function pullRemote(): Promise<void> {
     localFinanceIds,
     localGoalIds,
     localContributionIds,
+    localBoxIds,
     outboxEntries,
   ] = await Promise.all([
     clientRepository.getAllLocalIds(),
@@ -225,6 +258,7 @@ async function pullRemote(): Promise<void> {
     financeRepository.getAllLocalIds(),
     goalRepository.getAllGoalIds(),
     goalRepository.getAllContributionIds(),
+    boxRepository.getAllLocalIds(),
     db.outbox.toArray(),
   ]);
   const pendingIds = new Set(outboxEntries.map((e) => e.entityId));
@@ -261,6 +295,13 @@ async function pullRemote(): Promise<void> {
   for (const id of localContributionIds) {
     if (!serverContributionIds.has(id) && !pendingIds.has(id)) {
       await goalRepository.removeContributionLocalOnly(id);
+    }
+  }
+
+  const serverBoxIds = new Set(serverBoxes.map((b) => b.id));
+  for (const id of localBoxIds) {
+    if (!serverBoxIds.has(id) && !pendingIds.has(id)) {
+      await boxRepository.removeLocalOnly(id);
     }
   }
 }

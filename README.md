@@ -104,6 +104,15 @@ tudo hoje e ligar a cobrança depois.
    caso de estorno/chargeback; pagamentos com valor ou moeda diferentes do plano são registrados
    mas não liberam acesso.
 
+### Cofrinhos (Investimentos)
+
+Na página Investimentos é possível criar **cofrinhos** (como as caixinhas do Nubank): cada um tem
+nome, cor e rendimento próprio (% do CDI). "Guardar" e "Resgatar" criam lançamentos de investimento
+ligados ao cofrinho (o resgate é um valor negativo), e "Simular rendimento" abre o simulador já com
+o saldo e a taxa daquele cofrinho. O Início continua mostrando um único total de investimentos —
+cofrinhos são só uma forma de agrupar. Remover um cofrinho não apaga o dinheiro: os lançamentos
+viram aplicações avulsas.
+
 ### 1b. Variáveis obrigatórias em produção
 
 - `APP_URL=https://SEU-SITE` — endereço usado nos links dos e-mails (sem ele o servidor usa o Host

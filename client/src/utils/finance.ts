@@ -483,6 +483,18 @@ export function storeAnnualCdi(value: number): void {
  * each application's own percentual do CDI. An estimate, not a statement:
  * it assumes the informed CDI holds and ignores taxes.
  */
+/** What one pot (or any single balance at one rate) yields in a month, before tax. */
+export function estimateBoxMonthlyYield(
+  balance: number,
+  cdiPercent: number,
+  annualCdiPercent: number
+): number {
+  if (balance <= 0) return 0;
+  const share = Math.max(0, cdiPercent) / 100;
+  const monthlyRate = Math.pow(1 + cdiDailyRate(annualCdiPercent) * share, BUSINESS_DAYS_PER_MONTH) - 1;
+  return balance * monthlyRate;
+}
+
 export function estimateMonthlyYield(entries: FinanceEntry[], annualCdiPercent: number): number {
   const dailyRate = cdiDailyRate(annualCdiPercent);
 

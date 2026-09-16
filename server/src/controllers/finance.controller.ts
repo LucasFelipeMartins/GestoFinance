@@ -22,12 +22,20 @@ interface NormalizableEntry {
   installments?: number;
   paidInstallments?: number;
   cdiPercent?: number;
+  boxId?: string;
   clientId?: string;
+  amount?: number;
   [key: string]: unknown;
 }
 
 function normalizeByKind(entry: NormalizableEntry): NormalizableEntry {
   if (entry.clientId === '') entry.clientId = undefined;
+  if (entry.boxId === '') entry.boxId = undefined;
+  if (entry.kind !== 'investment' && typeof entry.amount === 'number' && entry.amount < 0) {
+    throw ApiError.badRequest('O valor não pode ser negativo.', { amount: 'O valor não pode ser negativo.' });
+  }
+  // Only an investimento can sit in a cofrinho.
+  if (entry.kind !== 'investment') entry.boxId = undefined;
 
   if (entry.kind === 'expense') {
     entry.cdiPercent = undefined;

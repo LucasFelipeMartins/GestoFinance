@@ -213,9 +213,48 @@ export interface FinanceEntry {
   /** Percentage OF the CDI (e.g. 110 = 110% do CDI), how Brazilian fixed
    * income is actually quoted. */
   cdiPercent?: number;
+  /** The cofrinho this money sits in (InvestmentBox.id). A negative amount
+   * on an investimento is a resgate — money taken back out of it. */
+  boxId?: string;
 
   createdAt: string;
   updatedAt: string;
+}
+
+/* ------------------------------------------------------------------ */
+/* Cofrinhos                                                           */
+/* ------------------------------------------------------------------ */
+
+export const BOX_COLORS = ['sage', 'blue', 'amber', 'rose', 'violet', 'teal'] as const;
+export type BoxColor = (typeof BOX_COLORS)[number];
+
+/**
+ * A "cofrinho" (Nubank-style caixinha): a named pot with its own yield that
+ * investments are deposited into. The balance is never stored — it is the
+ * sum of the investment entries whose `boxId` points here, which is also
+ * why the Home total needs no special casing: pots are just investments.
+ */
+export interface InvestmentBox {
+  id: string;
+  name: string;
+  /** Percentage OF the CDI the pot yields. */
+  cdiPercent: number;
+  color: BoxColor;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** A pot with the numbers every view needs, derived from its entries. */
+export interface BoxSummary {
+  box: InvestmentBox;
+  /** Deposits minus resgates. */
+  balance: number;
+  deposited: number;
+  withdrawn: number;
+  /** How many entries point at it. */
+  movements: number;
+  lastMovementAt?: string;
 }
 
 /* ------------------------------------------------------------------ */

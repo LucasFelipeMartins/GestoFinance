@@ -14,9 +14,17 @@ interface FinanceFormModalProps {
   entry?: FinanceEntry;
   /** Set by the ledger pages so the tipo picker stays out of the way. */
   lockedKind?: FinanceKind;
+  /** Pre-selects a cofrinho on a new investimento. */
+  defaultBoxId?: string;
 }
 
-export function FinanceFormModal({ open, onOpenChange, entry, lockedKind }: FinanceFormModalProps) {
+export function FinanceFormModal({
+  open,
+  onOpenChange,
+  entry,
+  lockedKind,
+  defaultBoxId,
+}: FinanceFormModalProps) {
   const createEntry = useCreateFinanceEntry();
   const updateEntry = useUpdateFinanceEntry();
   const toast = useToast();
@@ -46,6 +54,7 @@ export function FinanceFormModal({ open, onOpenChange, entry, lockedKind }: Fina
       installments,
       paidInstallments,
       cdiPercent: values.cdiPercent,
+      boxId: values.kind === 'investment' ? values.boxId || undefined : undefined,
     };
 
     try {
@@ -86,8 +95,9 @@ export function FinanceFormModal({ open, onOpenChange, entry, lockedKind }: Fina
                 installments: installmentCount(entry),
                 paidInstallments: paidInstallmentCount(entry),
                 cdiPercent: entry.cdiPercent ?? 100,
+                boxId: entry.boxId ?? '',
               }
-            : { kind: lockedKind }
+            : { kind: lockedKind, boxId: defaultBoxId ?? '' }
         }
         onSubmit={handleSubmit}
         onCancel={() => onOpenChange(false)}

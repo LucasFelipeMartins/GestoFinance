@@ -35,6 +35,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         queryClient.invalidateQueries({ queryKey: ['tasks'] });
         queryClient.invalidateQueries({ queryKey: ['finance'] });
         queryClient.invalidateQueries({ queryKey: ['goals'] });
+        queryClient.invalidateQueries({ queryKey: ['boxes'] });
         queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       }
     });

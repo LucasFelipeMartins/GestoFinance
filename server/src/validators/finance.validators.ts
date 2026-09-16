@@ -6,7 +6,10 @@ const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
 const baseFinanceFields = {
   kind: z.enum(FINANCE_KINDS, { message: 'Tipo de lançamento inválido.' }),
   description: z.string().trim().min(1, 'A descrição é obrigatória.').max(200, 'Descrição muito longa.'),
-  amount: z.coerce.number({ message: 'Informe um valor.' }).min(0, 'O valor não pode ser negativo.'),
+  // Negative only for an investimento: that is a resgate (money taken out of
+  // a cofrinho). Enforced per kind in the controller, since an update may
+  // not carry the kind.
+  amount: z.coerce.number({ message: 'Informe um valor.' }).min(-1e9).max(1e9),
   date: z.coerce.date({ message: 'Informe uma data válida.' }),
   category: z.string().trim().max(60, 'Categoria muito longa.').optional(),
   notes: z.string().trim().max(2000, 'Observações muito longas.').optional(),
@@ -17,6 +20,7 @@ const baseFinanceFields = {
   installments: z.coerce.number().int().min(1).max(120).optional(),
   paidInstallments: z.coerce.number().int().min(0).max(120).optional(),
   cdiPercent: z.coerce.number().min(0).max(1000).optional(),
+  boxId: z.string().regex(uuidRegex, 'Cofrinho inválido.').optional().or(z.literal('')),
 };
 
 export const createFinanceSchema = z.object({
@@ -45,6 +49,7 @@ export const updateFinanceSchema = z
     installments: true,
     paidInstallments: true,
     cdiPercent: true,
+    boxId: true,
   });
 
 export const financeQuerySchema = z.object({

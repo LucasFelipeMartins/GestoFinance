@@ -30,7 +30,7 @@ import { formatCurrency, formatDate } from '@/utils/formatters';
 const FEATURES = [
   'Clientes, tarefas e prazos em um só lugar',
   'Receitas, despesas e parcelas do cartão',
-  'Investimentos com simulador de rendimento',
+  'Investimentos e cofrinhos com simulador de rendimento',
   'Metas de economia',
   'Acesse de qualquer aparelho pelo navegador',
 ];

@@ -49,6 +49,17 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     return;
   }
 
+  // Mongoose schema validation (a value the model refuses): the request's
+  // fault, and the field name is worth passing on.
+  if (err && typeof err === 'object' && (err as { name?: string }).name === 'ValidationError') {
+    const errors = (err as { errors?: Record<string, { message?: string }> }).errors ?? {};
+    const fields: Record<string, string> = {};
+    for (const [key, detail] of Object.entries(errors)) fields[key] = detail?.message ?? 'Valor inválido.';
+    const first = Object.values(fields)[0];
+    res.status(400).json({ message: first ? `Dados inválidos: ${first}` : 'Dados inválidos.', fields });
+    return;
+  }
+
   if (err && typeof err === 'object' && 'code' in err && (err as { code: unknown }).code === 11000) {
     res.status(409).json({ message: 'Este e-mail já está cadastrado.' });
     return;

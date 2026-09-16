@@ -26,6 +26,7 @@ export interface FinanceCreatePayload {
   installments?: number;
   paidInstallments?: number;
   cdiPercent?: number;
+  boxId?: string;
   createdAt: string;
   updatedAt: string;
 }

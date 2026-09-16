@@ -38,6 +38,7 @@ export interface FinanceFormInput {
   installments?: number;
   paidInstallments?: number;
   cdiPercent?: number;
+  boxId?: string;
 }
 
 /**
@@ -59,6 +60,7 @@ function normalizeByKind(row: LocalFinanceEntry): LocalFinanceEntry {
     return {
       ...row,
       cdiPercent: undefined,
+      boxId: undefined,
       installments: count,
       paidInstallments: paidCount,
       paid,
@@ -73,6 +75,7 @@ function normalizeByKind(row: LocalFinanceEntry): LocalFinanceEntry {
     installments: undefined,
     paidInstallments: undefined,
     cdiPercent: row.kind === 'investment' ? row.cdiPercent : undefined,
+    boxId: row.kind === 'investment' ? row.boxId : undefined,
   };
 }
 
@@ -95,6 +98,7 @@ function toPayload(row: LocalFinanceEntry): Omit<FinanceCreatePayload, 'localId'
     installments: row.installments,
     paidInstallments: row.paidInstallments,
     cdiPercent: row.cdiPercent,
+    boxId: row.boxId ?? '',
     updatedAt: row.updatedAt.toISOString(),
   };
 }
@@ -212,6 +216,7 @@ async function create(input: FinanceFormInput): Promise<FinanceEntry> {
     installments: input.installments,
     paidInstallments: input.paidInstallments,
     cdiPercent: input.cdiPercent,
+    boxId: input.boxId || undefined,
     createdAt: now,
     updatedAt: now,
   });
@@ -251,6 +256,7 @@ async function update(id: string, input: Partial<FinanceFormInput>): Promise<Fin
     category: 'category' in input ? input.category || undefined : existing.category,
     notes: 'notes' in input ? input.notes || undefined : existing.notes,
     clientId: 'clientId' in input ? input.clientId || undefined : existing.clientId,
+    boxId: 'boxId' in input ? input.boxId || undefined : existing.boxId,
     // paidAt is only meaningful once everything is paid; normalizeByKind
     // clears it otherwise and stamps `now` when this edit is what settled it.
     paidAt: existing.paid ? existing.paidAt : undefined,

@@ -9,7 +9,13 @@ import { describePayment, isBillOverdue, isInstallmentPlan, nextInstallment } fr
 import { isDerivedEntry } from '@/repositories/financeRepository';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import { SeriesMarkKey } from './SeriesMark';
-import { buildActions, AutoBadge, InstallmentProgress, paidToggleLabel } from './FinanceEntryTable';
+import {
+  buildActions,
+  AutoBadge,
+  InstallmentProgress,
+  paidToggleLabel,
+  useBoxName,
+} from './FinanceEntryTable';
 
 interface FinanceEntryCardProps {
   entry: FinanceEntry;
@@ -39,6 +45,7 @@ export function FinanceEntryCard({
   const next = nextInstallment(entry);
   const plan = isExpense && isInstallmentPlan(entry);
   const linkedClient = entry.clientId ? clientName?.(entry.clientId) : undefined;
+  const boxName = useBoxName();
 
   return (
     <Card padding="sm">
@@ -90,7 +97,9 @@ export function FinanceEntryCard({
               <Badge tone={entry.paid ? 'success' : 'warning'}>{entry.paid ? 'Paga' : 'A pagar'}</Badge>
             )}
             {isExpense && (
-              <span className="text-caption text-text-secondary">{describePayment(entry, formatCurrency)}</span>
+              <span className="text-caption text-text-secondary">
+                {describePayment(entry, formatCurrency)}
+              </span>
             )}
             {entry.kind === 'investment' && entry.cdiPercent != null && (
               <Badge tone="info">{entry.cdiPercent}% do CDI</Badge>
@@ -101,6 +110,7 @@ export function FinanceEntryCard({
                 {linkedClient}
               </span>
             )}
+            {boxName(entry) && <Badge tone="info">{boxName(entry)}</Badge>}
             {entry.category && <Badge tone="neutral">{entry.category}</Badge>}
           </div>
 
@@ -113,7 +123,14 @@ export function FinanceEntryCard({
 
         <div className="-mr-2 -mt-1.5 shrink-0">
           <ActionsMenu
-            items={buildActions(entry, { onEdit, onDelete, onTogglePaid, onUndoInstallment, onSimulate, onOpenClient })}
+            items={buildActions(entry, {
+              onEdit,
+              onDelete,
+              onTogglePaid,
+              onUndoInstallment,
+              onSimulate,
+              onOpenClient,
+            })}
           />
         </div>
       </div>

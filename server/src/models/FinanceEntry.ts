@@ -43,6 +43,8 @@ export interface FinanceEntryDocument extends Document {
   /** Percentage OF the CDI the application yields (e.g. 110 = 110% do CDI),
    * which is how Brazilian fixed income is actually quoted. */
   cdiPercent?: number;
+  /** References InvestmentBox.localId — which cofrinho the money sits in. */
+  boxId?: string;
 
   createdAt: Date;
   updatedAt: Date;
@@ -53,7 +55,9 @@ const financeEntrySchema = new Schema<FinanceEntryDocument>({
   localId: { type: String, required: true },
   kind: { type: String, enum: FINANCE_KINDS, required: true },
   description: { type: String, required: true, trim: true },
-  amount: { type: Number, required: true, min: 0 },
+  // No `min`: a negative investimento is a resgate out of a cofrinho. Other
+  // kinds are kept non-negative by normalizeByKind in the controller.
+  amount: { type: Number, required: true },
   date: { type: Date, required: true },
   category: { type: String, trim: true },
   notes: { type: String, trim: true },
@@ -64,6 +68,7 @@ const financeEntrySchema = new Schema<FinanceEntryDocument>({
   installments: { type: Number, min: 1, max: 120 },
   paidInstallments: { type: Number, min: 0, max: 120 },
   cdiPercent: { type: Number, min: 0 },
+  boxId: { type: String },
   createdAt: { type: Date, required: true },
   updatedAt: { type: Date, required: true },
 });

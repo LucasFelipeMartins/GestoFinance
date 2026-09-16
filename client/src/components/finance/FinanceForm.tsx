@@ -9,6 +9,8 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { NumberStepper } from '@/components/ui/NumberStepper';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
+import { useBoxes } from '@/hooks/useBoxes';
 import { FinanceKind, FINANCE_KIND_OPTIONS, FINANCE_CATEGORIES } from '@/types';
 import { FINANCE_META } from '@/utils/financeMeta';
 import { formatCurrency, formatDate, parseDateInput } from '@/utils/formatters';
@@ -26,6 +28,7 @@ const schema = z
     installments: z.number().int().min(1).max(120).optional(),
     paidInstallments: z.number().int().min(0).max(120).optional(),
     cdiPercent: z.number().min(0).max(1000).optional(),
+    boxId: z.string().optional(),
   })
   .superRefine((values, ctx) => {
     if (values.kind === 'expense' && !values.paymentMethod) {
@@ -111,6 +114,7 @@ export function FinanceForm({
   submitLabel = 'Salvar',
 }: FinanceFormProps) {
   const categoryListId = useId();
+  const boxes = useBoxes().data ?? [];
 
   const {
     register,
@@ -132,6 +136,7 @@ export function FinanceForm({
       installments: 1,
       paidInstallments: 0,
       cdiPercent: 100,
+      boxId: '',
       ...defaultValues,
     },
   });
@@ -153,7 +158,8 @@ export function FinanceForm({
   const installmentAmount = installments > 0 ? amount / installments : amount;
   const openInstallments = Math.max(0, installments - paidInstallments);
   const purchaseDate = parseDateInput(dateValue ?? '');
-  const nextDue = purchaseDate && openInstallments > 0 ? addMonths(purchaseDate, paidInstallments) : undefined;
+  const nextDue =
+    purchaseDate && openInstallments > 0 ? addMonths(purchaseDate, paidInstallments) : undefined;
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
@@ -304,11 +310,39 @@ export function FinanceForm({
           {hasPlan && openInstallments > 0 && (
             <p className="flex items-start gap-2 rounded-input bg-finance-expense-soft/60 px-3 py-2.5 text-caption text-text-secondary">
               <CalendarClock size={14} className="mt-0.5 shrink-0 text-finance-expense" />
-              Nas contas a pagar aparece só a próxima parcela. Marque cada uma como paga quando pagar a
-              fatura do mês.
+              Nas contas a pagar aparece só a próxima parcela. Marque cada uma como paga quando pagar a fatura
+              do mês.
             </p>
           )}
         </>
+      )}
+
+      {isInvestment && boxes.length > 0 && (
+        <Controller
+          control={control}
+          name="boxId"
+          render={({ field }) => (
+            <Select
+              label="Cofrinho (opcional)"
+              placeholder="Aplicação avulsa, fora dos cofrinhos"
+              options={[
+                { value: '', label: 'Nenhum — aplicação avulsa' },
+                ...boxes.map((item) => ({
+                  value: item.box.id,
+                  label: `${item.box.name} · ${item.box.cdiPercent}% do CDI`,
+                })),
+              ]}
+              value={field.value ?? ''}
+              onChange={(value) => {
+                field.onChange(value);
+                // The pot decides the rate; picking one fills it in.
+                const chosen = boxes.find((item) => item.box.id === value);
+                if (chosen) setValue('cdiPercent', chosen.box.cdiPercent, { shouldDirty: true });
+              }}
+              hint="Escolha um cofrinho para o dinheiro contar no saldo dele."
+            />
+          )}
+        />
       )}
 
       {isInvestment && (
@@ -337,8 +371,8 @@ export function FinanceForm({
       {isIncome && (
         <p className="flex items-start gap-2 rounded-input bg-finance-income-soft/60 px-3 py-2.5 text-caption text-text-secondary">
           <Info size={14} className="mt-0.5 shrink-0 text-finance-income" />
-          Use este formulário para vendas, salários e outras entradas. O valor de um cliente entra
-          sozinho nas receitas quando você marca o cliente como concluído.
+          Use este formulário para vendas, salários e outras entradas. O valor de um cliente entra sozinho nas
+          receitas quando você marca o cliente como concluído.
         </p>
       )}
 
