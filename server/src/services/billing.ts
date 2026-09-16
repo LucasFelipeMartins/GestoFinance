@@ -1,15 +1,37 @@
 import { createHmac, timingSafeEqual } from 'crypto';
-import { MercadoPagoConfig, Preference, Payment as MpPayment } from 'mercadopago';
+import { MercadoPagoConfig, Preference, PreApproval, PaymentRefund, Payment as MpPayment } from 'mercadopago';
 import { Request } from 'express';
-import { User, UserDocument } from '../models/User';
-import { FreeAccount, Payment } from '../models/Billing';
 import { Types } from 'mongoose';
+import { User, UserDocument } from '../models/User';
+import { FreeAccount, Payment, PaymentDocument } from '../models/Billing';
 import { billingEnv, env } from '../config/env';
 import { ApiError } from '../utils/ApiError';
+import { sendMail, manualRefundEmail } from './mail';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type AccessReason = 'admin' | 'free' | 'paid' | 'trial' | 'expired';
+
+/** The card subscription, as the plan page shows it. */
+export interface SubscriptionInfo {
+  /** pending | authorized | paused | cancelled */
+  status: string;
+  nextChargeAt?: string;
+  cancelledAt?: string;
+}
+
+/** What "cancelar plano" would do right now — shown before the person confirms. */
+export interface CancelPreview {
+  /** A card subscription that would stop renewing. */
+  subscription?: { accessUntil?: string };
+  /** Pix periods not fully used, refunded pro rata. */
+  refund?: { total: number; unusedDays: number; items: { paymentId: string; amount: number }[] };
+  /** Whether access ends immediately (Pix refund) or at the period end (card/boleto). */
+  endsNow: boolean;
+  /** Nothing to cancel: no subscription and no refundable period. */
+  nothing: boolean;
+  accessUntil?: string;
+}
 
 /** What the client needs to decide between "let them in" and "show the paywall". */
 export interface AccessInfo {
@@ -27,6 +49,8 @@ export interface AccessInfo {
   trialDays: number;
   /** False until MP_ACCESS_TOKEN is set — everybody is let in meanwhile. */
   billingEnabled: boolean;
+  subscription?: SubscriptionInfo;
+  cancelPreview?: CancelPreview;
 }
 
 export function isBillingEnabled(): boolean {
@@ -58,6 +82,20 @@ function daysUntil(date: Date | undefined, now: number): number {
   return Math.max(0, Math.ceil((date.getTime() - now) / DAY_MS));
 }
 
+const LIVE_SUBSCRIPTION = new Set(['pending', 'authorized', 'paused']);
+
+export function describeSubscription(user: UserDocument): SubscriptionInfo | undefined {
+  if (!user.subscriptionId || !user.subscriptionStatus) return undefined;
+  return {
+    status: user.subscriptionStatus,
+    cancelledAt: user.subscriptionCancelledAt?.toISOString(),
+    // Renewals land on the paid-until date; showing it as "next charge" is
+    // what the person expects to read even if Mercado Pago's clock differs
+    // by a few hours.
+    nextChargeAt: user.subscriptionStatus === 'authorized' ? user.paidUntil?.toISOString() : undefined,
+  };
+}
+
 export async function computeAccess(user: UserDocument): Promise<AccessInfo> {
   const now = Date.now();
   const isAdmin = isAdminEmail(user.email);
@@ -69,6 +107,7 @@ export async function computeAccess(user: UserDocument): Promise<AccessInfo> {
     periodDays: billingEnv.periodDays,
     trialDays: billingEnv.trialDays,
     billingEnabled: isBillingEnabled(),
+    subscription: describeSubscription(user),
   };
 
   if (isAdmin) return { ...base, allowed: true, reason: 'admin', daysLeft: 0 };
@@ -118,12 +157,26 @@ async function mpCall<T>(what: string, run: () => Promise<T>): Promise<T> {
     if (err instanceof ApiError) throw err;
     // eslint-disable-next-line no-console
     console.error(`[billing] Mercado Pago: ${what} failed`, err);
-    const message =
-      err && typeof err === 'object' && 'message' in err
-        ? String((err as { message: unknown }).message)
-        : 'erro desconhecido';
-    throw new ApiError(502, `O Mercado Pago recusou o pedido (${message}). Confira o MP_ACCESS_TOKEN.`);
+    throw new ApiError(
+      502,
+      `O Mercado Pago recusou o pedido (${mpMessage(err)}). Confira o MP_ACCESS_TOKEN.`
+    );
   }
+}
+
+function mpMessage(err: unknown): string {
+  if (err && typeof err === 'object') {
+    const e = err as { message?: unknown; cause?: { description?: string }[] };
+    const cause = Array.isArray(e.cause)
+      ? e.cause
+          .map((c) => c?.description)
+          .filter(Boolean)
+          .join('; ')
+      : '';
+    if (cause) return cause;
+    if ('message' in e) return String(e.message);
+  }
+  return 'erro desconhecido';
 }
 
 function mpClient(): MercadoPagoConfig {
@@ -136,14 +189,17 @@ function mpClient(): MercadoPagoConfig {
   });
 }
 
+function price(): number {
+  return Math.round(billingEnv.priceMonthly * 100) / 100;
+}
+
 /**
- * Opens a Checkout Pro preference for one period of access and returns the
- * URL to send the person to. Mercado Pago shows Pix, cartão and boleto there
- * and comes back to /assinatura with the payment id in the query string.
+ * One period paid up front with Pix or boleto (Checkout Pro). Cards are left
+ * out on purpose: paying by card means the subscription below, which renews
+ * itself — that is the promise the plan page makes for each method.
  */
 export async function createCheckout(user: UserDocument, appUrl: string): Promise<{ url: string }> {
   const preference = new Preference(mpClient());
-  const price = Math.round(billingEnv.priceMonthly * 100) / 100;
   const isHttps = appUrl.startsWith('https://');
 
   const result = await mpCall('create preference', () =>
@@ -156,7 +212,7 @@ export async function createCheckout(user: UserDocument, appUrl: string): Promis
             description: 'Clientes, tarefas e finanças em um só lugar',
             category_id: 'services',
             quantity: 1,
-            unit_price: price,
+            unit_price: price(),
             currency_id: 'BRL',
           },
         ],
@@ -171,7 +227,10 @@ export async function createCheckout(user: UserDocument, appUrl: string): Promis
         // Mercado Pago only accepts auto_return with a public https return URL.
         ...(isHttps ? { auto_return: 'approved' } : {}),
         notification_url: isHttps ? `${appUrl}/api/billing/webhook` : undefined,
-        payment_methods: { installments: 1 },
+        payment_methods: {
+          installments: 1,
+          excluded_payment_types: [{ id: 'credit_card' }, { id: 'debit_card' }, { id: 'prepaid_card' }],
+        },
         statement_descriptor: 'GESTORFINANCE',
       },
     })
@@ -180,6 +239,122 @@ export async function createCheckout(user: UserDocument, appUrl: string): Promis
   const url = result.init_point ?? result.sandbox_init_point;
   if (!url) throw new ApiError(502, 'O Mercado Pago não devolveu o link de pagamento.');
   return { url };
+}
+
+/**
+ * The card subscription (Mercado Pago "assinatura"/preapproval): the person
+ * authorises the card once and Mercado Pago charges one period every month
+ * until it is cancelled. Each charge arrives as a normal `payment`
+ * notification and extends access like any other payment.
+ */
+export async function createSubscription(user: UserDocument, appUrl: string): Promise<{ url: string }> {
+  if (user.subscriptionId && user.subscriptionStatus === 'authorized') {
+    throw ApiError.badRequest('Sua renovação automática já está ativa.');
+  }
+
+  const result = await mpCall('create preapproval', () =>
+    new PreApproval(mpClient()).create({
+      body: {
+        reason: `GestorFinance — plano mensal (${billingEnv.periodDays} dias)`,
+        external_reference: String(user._id),
+        payer_email: billingEnv.testPayerEmail ?? user.email,
+        auto_recurring: {
+          frequency: 1,
+          frequency_type: 'months',
+          transaction_amount: price(),
+          currency_id: 'BRL',
+        },
+        back_url: `${appUrl}/assinatura?status=subscribed`,
+        status: 'pending',
+      },
+    })
+  );
+
+  if (!result.id || !result.init_point) {
+    throw new ApiError(502, 'O Mercado Pago não devolveu o link da assinatura.');
+  }
+
+  user.subscriptionId = result.id;
+  user.subscriptionStatus = result.status ?? 'pending';
+  user.subscriptionCancelledAt = undefined;
+  await user.save();
+
+  return { url: result.init_point };
+}
+
+/**
+ * Reads the subscription back from Mercado Pago and mirrors its state on the
+ * account. Called from the return page and from the webhook; whichever comes
+ * first. Once authorised, any charge already made is applied too.
+ */
+export async function syncSubscription(
+  preapprovalId: string
+): Promise<{ status: string; userId?: string; applied: number }> {
+  const sub = await mpCall('get preapproval', () => new PreApproval(mpClient()).get({ id: preapprovalId }));
+  const status = sub.status ?? 'unknown';
+
+  const user =
+    (sub.external_reference && Types.ObjectId.isValid(sub.external_reference)
+      ? await User.findById(sub.external_reference)
+      : null) ?? (await User.findOne({ subscriptionId: preapprovalId }));
+  if (!user) return { status, applied: 0 };
+
+  // A newer subscription replaced this one — don't let a late notification
+  // about the old one overwrite the current state.
+  if (user.subscriptionId && user.subscriptionId !== preapprovalId && status !== 'authorized') {
+    return { status, userId: String(user._id), applied: 0 };
+  }
+
+  user.subscriptionId = preapprovalId;
+  user.subscriptionStatus = status;
+  if (status === 'cancelled' && !user.subscriptionCancelledAt) user.subscriptionCancelledAt = new Date();
+  if (status === 'authorized') user.subscriptionCancelledAt = undefined;
+  await user.save();
+
+  let applied = 0;
+  if (status === 'authorized') applied = await applyRecentPayments(user);
+  return { status, userId: String(user._id), applied };
+}
+
+/**
+ * Mercado Pago copies the subscription's external_reference (our user id)
+ * onto every charge it generates, so the person's recent payments can be
+ * found and applied without waiting for each webhook. Idempotent.
+ */
+async function applyRecentPayments(user: UserDocument): Promise<number> {
+  const found = await mpCall('search payments', () =>
+    new MpPayment(mpClient()).search({
+      options: { external_reference: String(user._id), sort: 'date_created', criteria: 'desc', limit: 10 },
+    })
+  );
+  let applied = 0;
+  for (const payment of found.results ?? []) {
+    if (!payment.id) continue;
+    const before = await Payment.findOne({ providerPaymentId: String(payment.id) }).lean();
+    if (before?.appliedAt) continue;
+    const result = await applyPaymentById(String(payment.id));
+    if (result.status === 'approved') applied += 1;
+  }
+  return applied;
+}
+
+/** `subscription_authorized_payment` notifications: a charge of a subscription. */
+export async function applyAuthorizedPayment(
+  authorizedPaymentId: string
+): Promise<{ status: string; userId?: string }> {
+  const client = mpClient();
+  const response = await fetch(`https://api.mercadopago.com/authorized_payments/${authorizedPaymentId}`, {
+    headers: { Authorization: `Bearer ${client.accessToken}` },
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!response.ok) {
+    // eslint-disable-next-line no-console
+    console.error(`[billing] authorized_payments/${authorizedPaymentId} -> ${response.status}`);
+    return { status: 'unknown' };
+  }
+  const body = (await response.json()) as { payment?: { id?: number | string; status?: string } };
+  if (!body.payment?.id) return { status: body.payment?.status ?? 'unknown' };
+  return applyPaymentById(String(body.payment.id));
 }
 
 /** Mercado Pago statuses that take an already-approved payment back. */
@@ -191,6 +366,20 @@ export type ApplyResult = {
   userId?: string;
 };
 
+type MpPaymentResponse = Awaited<ReturnType<MpPayment['get']>>;
+
+/** Which account a payment belongs to: our reference, or the subscription it came from. */
+async function resolvePaymentUser(payment: MpPaymentResponse): Promise<string | undefined> {
+  const metadata = (payment.metadata ?? {}) as { user_id?: string; preapproval_id?: string };
+  const direct = payment.external_reference || metadata.user_id;
+  if (direct && Types.ObjectId.isValid(direct)) return direct;
+  if (metadata.preapproval_id) {
+    const owner = await User.findOne({ subscriptionId: metadata.preapproval_id }).select('_id').lean();
+    if (owner) return String(owner._id);
+  }
+  return undefined;
+}
+
 /**
  * Fetches a payment straight from Mercado Pago and, if approved, extends the
  * owner's access — once. Both the webhook and the return page call this, in
@@ -201,8 +390,7 @@ export type ApplyResult = {
 export async function applyPaymentById(providerPaymentId: string): Promise<ApplyResult> {
   const payment = await mpCall('get payment', () => new MpPayment(mpClient()).get({ id: providerPaymentId }));
   const status = payment.status ?? 'unknown';
-  const userId =
-    payment.external_reference || (payment.metadata as { user_id?: string } | undefined)?.user_id;
+  const userId = await resolvePaymentUser(payment);
 
   if (!userId) return { status };
 
@@ -216,14 +404,18 @@ export async function applyPaymentById(providerPaymentId: string): Promise<Apply
       ? `valor ${currency} ${amount} abaixo do plano (BRL ${billingEnv.priceMonthly})`
       : undefined;
 
+  const metadata = (payment.metadata ?? {}) as { preapproval_id?: string };
+  const isRecurring = payment.operation_type === 'recurring_payment' || Boolean(metadata.preapproval_id);
+
   const record = await Payment.findOneAndUpdate(
     { providerPaymentId },
     {
-      $setOnInsert: { userId, providerPaymentId },
+      $setOnInsert: { userId, providerPaymentId, kind: isRecurring ? 'subscription' : 'single' },
       $set: {
         status,
         amount: payment.transaction_amount,
         method: payment.payment_type_id,
+        ...(metadata.preapproval_id ? { preapprovalId: metadata.preapproval_id } : {}),
         ...(issue ? { issue } : {}),
       },
     },
@@ -303,6 +495,186 @@ async function revokePeriod(userId: Types.ObjectId, providerPaymentId: string): 
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* Cancelling                                                          */
+/* ------------------------------------------------------------------ */
+
+/** Mercado Pago payment_type_id values we refund pro rata (Pix and wallet balance). */
+const REFUNDABLE_METHODS = new Set(['bank_transfer', 'account_money']);
+
+/** Pix periods still (partly) ahead of us: what would be paid back. */
+async function refundablePayments(userId: Types.ObjectId, now: number) {
+  const rows = await Payment.find({
+    userId,
+    status: 'approved',
+    appliedAt: { $ne: null },
+    revokedAt: null,
+    refundStatus: null,
+    kind: { $ne: 'subscription' },
+    method: { $in: Array.from(REFUNDABLE_METHODS) },
+    periodEnd: { $gt: new Date(now) },
+  }).sort({ periodEnd: 1 });
+
+  return rows
+    .filter((row) => row.amount && row.periodStart && row.periodEnd)
+    .map((row) => {
+      const start = row.periodStart!.getTime();
+      const end = row.periodEnd!.getTime();
+      const unusedMs = Math.max(0, end - Math.max(now, start));
+      const fraction = unusedMs / (end - start);
+      const amount = Math.floor(row.amount! * fraction * 100) / 100;
+      return { row, amount, unusedDays: Math.round(unusedMs / DAY_MS) };
+    })
+    .filter((item) => item.amount >= 0.01);
+}
+
+export async function previewCancellation(user: UserDocument): Promise<CancelPreview> {
+  const now = Date.now();
+  const hasSubscription = Boolean(
+    user.subscriptionId && LIVE_SUBSCRIPTION.has(user.subscriptionStatus ?? '')
+  );
+  const refunds = await refundablePayments(user._id, now);
+
+  const preview: CancelPreview = {
+    endsNow: refunds.length > 0,
+    nothing: !hasSubscription && refunds.length === 0,
+    accessUntil: user.paidUntil?.toISOString(),
+  };
+  if (hasSubscription) preview.subscription = { accessUntil: user.paidUntil?.toISOString() };
+  if (refunds.length > 0) {
+    preview.refund = {
+      total: Math.round(refunds.reduce((sum, item) => sum + item.amount, 0) * 100) / 100,
+      unusedDays: refunds.reduce((sum, item) => sum + item.unusedDays, 0),
+      items: refunds.map((item) => ({ paymentId: item.row.providerPaymentId, amount: item.amount })),
+    };
+  }
+  return preview;
+}
+
+export interface CancelResult {
+  subscriptionCancelled: boolean;
+  refunds: { paymentId: string; amount: number; status: string }[];
+  /** Total actually refunded through Mercado Pago. */
+  refundedNow: number;
+  /** Total Mercado Pago refused to refund automatically (owner notified). */
+  refundManual: number;
+  accessUntil?: string;
+}
+
+/**
+ * "Cancelar plano":
+ *  - card subscription → Mercado Pago stops renewing; what was paid stays
+ *    paid, so access runs until the period end (boleto periods likewise:
+ *    they never renew and are not refunded);
+ *  - Pix periods → the unused days are refunded pro rata and access ends now.
+ */
+export async function cancelPlan(user: UserDocument): Promise<CancelResult> {
+  const now = Date.now();
+  const result: CancelResult = { subscriptionCancelled: false, refunds: [], refundedNow: 0, refundManual: 0 };
+
+  if (user.subscriptionId && LIVE_SUBSCRIPTION.has(user.subscriptionStatus ?? '')) {
+    await mpCall('cancel preapproval', () =>
+      new PreApproval(mpClient()).update({ id: user.subscriptionId!, body: { status: 'cancelled' } })
+    );
+    user.subscriptionStatus = 'cancelled';
+    user.subscriptionCancelledAt = new Date();
+    await user.save();
+    result.subscriptionCancelled = true;
+  }
+
+  const refunds = await refundablePayments(user._id, now);
+  for (const { row, amount } of refunds) {
+    const status = await refundPayment(user, row, amount);
+    result.refunds.push({ paymentId: row.providerPaymentId, amount, status });
+    if (status === 'done') result.refundedNow += amount;
+    else result.refundManual += amount;
+  }
+  result.refundedNow = Math.round(result.refundedNow * 100) / 100;
+  result.refundManual = Math.round(result.refundManual * 100) / 100;
+
+  if (refunds.length > 0) {
+    // The refunded periods are over. Whatever was paid by card or boleto
+    // (never refunded) still counts, so access ends at the latest remaining
+    // period — or now, if there is none.
+    const remaining = await Payment.find({
+      userId: user._id,
+      status: 'approved',
+      appliedAt: { $ne: null },
+      revokedAt: null,
+    })
+      .sort({ periodEnd: -1 })
+      .limit(1)
+      .lean();
+    const remainingEnd = remaining[0]?.periodEnd?.getTime() ?? 0;
+    user.paidUntil = new Date(Math.max(now, remainingEnd));
+    await user.save();
+  }
+
+  if (!result.subscriptionCancelled && refunds.length === 0) {
+    throw ApiError.badRequest('Não há renovação automática ativa nem período a estornar na sua conta.');
+  }
+
+  result.accessUntil = user.paidUntil?.toISOString();
+  return result;
+}
+
+/** Asks Mercado Pago for a (partial) refund; anything it refuses is flagged for the owner. */
+async function refundPayment(user: UserDocument, row: PaymentDocument, amount: number): Promise<string> {
+  const requestedAt = new Date();
+  let status: string;
+  let note: string | undefined;
+
+  try {
+    const refund = await new PaymentRefund(mpClient()).create({
+      payment_id: row.providerPaymentId,
+      body: { amount },
+      requestOptions: { idempotencyKey: `refund-${row.providerPaymentId}-${Math.round(amount * 100)}` },
+    });
+    status = refund.status === 'approved' || refund.status === 'in_process' ? 'done' : 'failed';
+    note = refund.status ? `Mercado Pago: ${refund.status}` : undefined;
+  } catch (err) {
+    status = 'manual';
+    note = `Mercado Pago recusou o estorno automático: ${mpMessage(err)}`;
+    // eslint-disable-next-line no-console
+    console.error(`[billing] refund of ${row.providerPaymentId} failed`, err);
+  }
+
+  row.refundAmount = amount;
+  row.refundStatus = status;
+  row.refundRequestedAt = requestedAt;
+  row.refundNote = note;
+  row.revokedAt = requestedAt; // the period is over either way
+  await row.save();
+
+  if (status !== 'done') await notifyManualRefund(user, row, amount, note ?? '');
+  return status;
+}
+
+async function notifyManualRefund(user: UserDocument, row: PaymentDocument, amount: number, reason: string) {
+  for (const admin of billingEnv.adminEmails) {
+    try {
+      await sendMail(
+        manualRefundEmail({
+          to: admin,
+          userName: user.name,
+          userEmail: user.email,
+          paymentId: row.providerPaymentId,
+          method: row.method ?? 'desconhecido',
+          amount,
+          reason,
+        })
+      );
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[billing] could not e-mail the admin about a manual refund', err);
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Webhook                                                             */
+/* ------------------------------------------------------------------ */
+
 /**
  * Checks the `x-signature` header the way Mercado Pago documents it:
  * HMAC-SHA256 over `id:<data.id>;request-id:<x-request-id>;ts:<ts>;`.
@@ -336,8 +708,10 @@ export function verifyWebhookSignature(req: Request, dataId: string): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-/** Pulls the payment id out of either notification format Mercado Pago sends. */
-export function extractWebhookPaymentId(req: Request): string | undefined {
+export type WebhookTopic = 'payment' | 'subscription_preapproval' | 'subscription_authorized_payment';
+
+/** Pulls topic and id out of either notification format Mercado Pago sends. */
+export function extractWebhookEvent(req: Request): { topic: WebhookTopic; id: string } | undefined {
   const query = req.query as Record<string, unknown>;
   const body = (req.body ?? {}) as {
     type?: string;
@@ -345,11 +719,16 @@ export function extractWebhookPaymentId(req: Request): string | undefined {
     data?: { id?: string | number };
   };
 
-  const type = (query.type as string | undefined) ?? (query.topic as string | undefined) ?? body.type;
-  const isPayment = !type || type === 'payment' || body.action?.startsWith('payment.');
-  if (!isPayment) return undefined;
+  const rawType = (query.type as string | undefined) ?? (query.topic as string | undefined) ?? body.type;
+  let topic: WebhookTopic | undefined;
+  if (!rawType || rawType === 'payment' || body.action?.startsWith('payment.')) topic = 'payment';
+  else if (rawType === 'subscription_preapproval' || rawType === 'preapproval')
+    topic = 'subscription_preapproval';
+  else if (rawType === 'subscription_authorized_payment') topic = 'subscription_authorized_payment';
+  if (!topic) return undefined;
 
   const fromQuery = (query['data.id'] as string | undefined) ?? (query.id as string | undefined);
   const fromBody = body.data?.id !== undefined ? String(body.data.id) : undefined;
-  return fromQuery ?? fromBody;
+  const id = fromQuery ?? fromBody;
+  return id ? { topic, id } : undefined;
 }

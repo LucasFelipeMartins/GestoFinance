@@ -20,6 +20,22 @@ export const STATUS_OPTIONS: { value: EntityStatus; label: string }[] = [
  * AccessInfo in services/billing.ts. */
 export type AccessReason = 'admin' | 'free' | 'paid' | 'trial' | 'expired';
 
+export interface SubscriptionInfo {
+  /** pending | authorized | paused | cancelled */
+  status: string;
+  nextChargeAt?: string;
+  cancelledAt?: string;
+}
+
+/** What "cancelar plano" would do right now. */
+export interface CancelPreview {
+  subscription?: { accessUntil?: string };
+  refund?: { total: number; unusedDays: number; items: { paymentId: string; amount: number }[] };
+  endsNow: boolean;
+  nothing: boolean;
+  accessUntil?: string;
+}
+
 export interface AccessInfo {
   allowed: boolean;
   reason: AccessReason;
@@ -33,6 +49,8 @@ export interface AccessInfo {
   periodDays: number;
   trialDays: number;
   billingEnabled: boolean;
+  subscription?: SubscriptionInfo;
+  cancelPreview?: CancelPreview;
 }
 
 export interface User {

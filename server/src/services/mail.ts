@@ -105,11 +105,7 @@ const BRAND_ACCENT = '#629460';
 const BRAND_TINT = '#E4F5E2';
 
 function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 /** The shared frame every message uses: logo strip, white card, footer. */
@@ -144,7 +140,12 @@ function layout(title: string, bodyHtml: string): string {
 </html>`;
 }
 
-export function registrationCodeEmail(input: { to: string; name: string; code: string; minutes: number }): MailMessage {
+export function registrationCodeEmail(input: {
+  to: string;
+  name: string;
+  code: string;
+  minutes: number;
+}): MailMessage {
   const firstName = input.name.trim().split(/\s+/)[0] || 'Olá';
   const digits = input.code.split('').join(' ');
 
@@ -170,7 +171,12 @@ export function registrationCodeEmail(input: { to: string; name: string; code: s
   return { to: input.to, subject: `${input.code} é o seu código de confirmação — GestorFinance`, text, html };
 }
 
-export function passwordResetEmail(input: { to: string; name: string; link: string; minutes: number }): MailMessage {
+export function passwordResetEmail(input: {
+  to: string;
+  name: string;
+  link: string;
+  minutes: number;
+}): MailMessage {
   const firstName = input.name.trim().split(/\s+/)[0] || 'Olá';
 
   const text =
@@ -198,4 +204,48 @@ export function passwordResetEmail(input: { to: string; name: string; link: stri
   );
 
   return { to: input.to, subject: 'Redefinir sua senha — GestorFinance', text, html };
+}
+
+/** To the owner: a Pix refund Mercado Pago would not process — pay it back by hand. */
+export function manualRefundEmail(input: {
+  to: string;
+  userName: string;
+  userEmail: string;
+  paymentId: string;
+  method: string;
+  amount: number;
+  reason: string;
+}): MailMessage {
+  const amount = input.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  const text =
+    `Um cliente cancelou o plano e o estorno proporcional NÃO foi feito automaticamente.\n\n` +
+    `Cliente: ${input.userName} <${input.userEmail}>\n` +
+    `Pagamento Mercado Pago: ${input.paymentId} (${input.method})\n` +
+    `Valor a devolver: ${amount}\n` +
+    `Motivo: ${input.reason}\n\n` +
+    `Faça a devolução pelo painel do Mercado Pago (Atividade → pagamento → Devolver) ou por Pix.`;
+
+  const html = layout(
+    'Estorno manual necessário',
+    `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#182014;">
+        Um cliente cancelou o plano e o estorno proporcional <strong>não foi feito automaticamente</strong>.
+     </p>
+     <table style="border-collapse:collapse;font-size:14px;line-height:1.7;color:#182014;">
+       <tr><td style="padding-right:12px;color:#66705F;">Cliente</td><td>${escapeHtml(input.userName)} &lt;${escapeHtml(input.userEmail)}&gt;</td></tr>
+       <tr><td style="padding-right:12px;color:#66705F;">Pagamento</td><td>${escapeHtml(input.paymentId)} (${escapeHtml(input.method)})</td></tr>
+       <tr><td style="padding-right:12px;color:#66705F;">Valor a devolver</td><td><strong>${escapeHtml(amount)}</strong></td></tr>
+       <tr><td style="padding-right:12px;color:#66705F;">Motivo</td><td>${escapeHtml(input.reason)}</td></tr>
+     </table>
+     <p style="margin:16px 0 0;font-size:13px;line-height:1.6;color:#66705F;">
+        Faça a devolução pelo painel do Mercado Pago (Atividade → pagamento → Devolver) ou por Pix.
+     </p>`
+  );
+
+  return {
+    to: input.to,
+    subject: `Estorno manual: ${amount} para ${input.userEmail} — GestorFinance`,
+    text,
+    html,
+  };
 }

@@ -20,6 +20,12 @@ export interface UserDocument extends Document {
    * previous paidUntil or the trial end — nobody loses days by paying early. */
   paidUntil?: Date;
   lastPaymentAt?: Date;
+  /** Mercado Pago preapproval id when the person pays by card: the
+   * subscription that renews itself every period until cancelled. */
+  subscriptionId?: string;
+  /** pending | authorized | paused | cancelled (Mercado Pago's own states). */
+  subscriptionStatus?: string;
+  subscriptionCancelledAt?: Date;
   /** Baked into every JWT; bumping it signs the person out everywhere
    * (password reset/change). */
   sessionVersion: number;
@@ -37,6 +43,9 @@ const userSchema = new Schema<UserDocument>(
     trialEndsAt: { type: Date },
     paidUntil: { type: Date },
     lastPaymentAt: { type: Date },
+    subscriptionId: { type: String, index: true },
+    subscriptionStatus: { type: String },
+    subscriptionCancelledAt: { type: Date },
     sessionVersion: { type: Number, default: 0 },
   },
   { timestamps: true }

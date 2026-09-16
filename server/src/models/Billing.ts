@@ -44,6 +44,15 @@ export interface PaymentDocument extends Document {
   revokedAt?: Date;
   /** Why an approved payment was NOT applied (wrong amount/currency). */
   issue?: string;
+  /** 'subscription' when the charge came from the card subscription. */
+  kind?: 'single' | 'subscription';
+  preapprovalId?: string;
+  /** Refund we asked for when the person cancelled (pro rata of unused days). */
+  refundAmount?: number;
+  /** requested | done | manual (boleto: has to be paid back by hand) | failed */
+  refundStatus?: string;
+  refundRequestedAt?: Date;
+  refundNote?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -60,6 +69,12 @@ const paymentSchema = new Schema<PaymentDocument>(
     periodEnd: { type: Date },
     revokedAt: { type: Date },
     issue: { type: String },
+    kind: { type: String, enum: ['single', 'subscription'] },
+    preapprovalId: { type: String },
+    refundAmount: { type: Number },
+    refundStatus: { type: String },
+    refundRequestedAt: { type: Date },
+    refundNote: { type: String },
   },
   { timestamps: true }
 );

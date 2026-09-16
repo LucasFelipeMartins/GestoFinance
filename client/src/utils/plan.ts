@@ -20,18 +20,37 @@ export interface PlanSummary {
 export function describePlan(access: AccessInfo): PlanSummary {
   switch (access.reason) {
     case 'admin':
-      return { title: 'Conta de administrador', detail: 'Acesso completo, sem cobrança.', tone: 'neutral', canPay: false };
+      return {
+        title: 'Conta de administrador',
+        detail: 'Acesso completo, sem cobrança.',
+        tone: 'neutral',
+        canPay: false,
+      };
     case 'free':
       return access.billingEnabled
-        ? { title: 'Conta gratuita', detail: 'Você foi liberado pelo administrador — nada a pagar.', tone: 'neutral', canPay: false }
-        : { title: 'Acesso liberado', detail: 'A cobrança ainda não foi ativada neste servidor.', tone: 'neutral', canPay: false };
-    case 'paid':
+        ? {
+            title: 'Conta gratuita',
+            detail: 'Você foi liberado pelo administrador — nada a pagar.',
+            tone: 'neutral',
+            canPay: false,
+          }
+        : {
+            title: 'Acesso liberado',
+            detail: 'A cobrança ainda não foi ativada neste servidor.',
+            tone: 'neutral',
+            canPay: false,
+          };
+    case 'paid': {
+      const renewing = access.subscription?.status === 'authorized';
       return {
-        title: 'Assinatura ativa',
-        detail: `Pago até ${access.paidUntil ? formatDate(access.paidUntil) : '—'} · ${plural(access.daysLeft, 'dia')} restante${access.daysLeft === 1 ? '' : 's'}.`,
-        tone: access.daysLeft <= 3 ? 'warning' : 'neutral',
+        title: renewing ? 'Assinatura ativa · renovação automática' : 'Assinatura ativa',
+        detail: renewing
+          ? `Próxima cobrança no cartão em ${access.paidUntil ? formatDate(access.paidUntil) : '—'}.`
+          : `Pago até ${access.paidUntil ? formatDate(access.paidUntil) : '—'} · ${plural(access.daysLeft, 'dia')} restante${access.daysLeft === 1 ? '' : 's'}.`,
+        tone: !renewing && access.daysLeft <= 3 ? 'warning' : 'neutral',
         canPay: true,
       };
+    }
     case 'trial':
       return {
         title: 'Período de teste grátis',

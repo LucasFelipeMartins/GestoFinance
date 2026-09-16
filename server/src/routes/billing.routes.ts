@@ -1,6 +1,13 @@
 import { Router } from 'express';
 import { createLimiter } from '../middleware/rateLimit';
-import { getStatus, checkout, confirm } from '../controllers/billing.controller';
+import {
+  getStatus,
+  checkout,
+  subscribe,
+  confirm,
+  confirmSubscription,
+  cancel,
+} from '../controllers/billing.controller';
 import { requireAuth } from '../middleware/requireAuth';
 
 const router = Router();
@@ -16,7 +23,10 @@ const mpLimiter = createLimiter({
 
 router.get('/status', requireAuth, getStatus);
 router.post('/checkout', requireAuth, mpLimiter, checkout);
+router.post('/subscribe', requireAuth, mpLimiter, subscribe);
 router.post('/confirm', requireAuth, mpLimiter, confirm);
+router.post('/confirm-subscription', requireAuth, mpLimiter, confirmSubscription);
+router.post('/cancel', requireAuth, mpLimiter, cancel);
 // The webhook itself is mounted in app.ts (it needs the raw body).
 
 export default router;

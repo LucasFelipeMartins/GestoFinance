@@ -88,6 +88,13 @@ export const billingEnv = {
   periodDays: Number(process.env.PLAN_PERIOD_DAYS ?? 30),
   /** Free days every new account starts with. */
   trialDays: Number(process.env.TRIAL_DAYS ?? 7),
+  /**
+   * Development only: with test credentials Mercado Pago demands that the
+   * subscription's payer be a test account, so the test buyer's e-mail
+   * replaces the real one when creating subscriptions. Ignored in production.
+   */
+  testPayerEmail:
+    (process.env.NODE_ENV ?? 'development') === 'production' ? undefined : optional('MP_TEST_PAYER_EMAIL'),
   /** Comma-separated. Admins never pay and can grant free access to others. */
   adminEmails: (process.env.ADMIN_EMAILS ?? '')
     .split(',')

@@ -8,35 +8,58 @@ import {
   computeAccess,
   ensureTrial,
   createCheckout,
+  createSubscription,
+  syncSubscription,
   applyPaymentById,
-  extractWebhookPaymentId,
+  applyAuthorizedPayment,
+  previewCancellation,
+  cancelPlan,
+  extractWebhookEvent,
   verifyWebhookSignature,
 } from '../services/billing';
 
-async function loadUser(userId: string | undefined) {
-  const user = await User.findById(userId);
+async function loadUser(req: Request) {
+  const user = req.user ?? (await User.findById(req.userId));
   if (!user) throw ApiError.unauthorized();
   await ensureTrial(user);
   return user;
 }
 
+/** Access plus what the plan page needs on top: subscription state and the cancel preview. */
+async function fullAccess(req: Request) {
+  const user = await loadUser(req);
+  const access = await computeAccess(user);
+  return { ...access, cancelPreview: await previewCancellation(user) };
+}
+
 export const getStatus = asyncHandler(async (req: Request, res: Response) => {
-  const user = await loadUser(req.userId);
-  res.json({ access: await computeAccess(user) });
+  res.json({ access: await fullAccess(req) });
 });
 
-export const checkout = asyncHandler(async (req: Request, res: Response) => {
-  const user = await loadUser(req.userId);
-  const access = await computeAccess(user);
-  if (access.reason === 'admin' || access.reason === 'free') {
+function assertPayable(reason: string) {
+  if (reason === 'admin' || reason === 'free') {
     throw ApiError.badRequest('Sua conta é gratuita — não há nada a pagar.');
   }
+}
+
+/** Pix / boleto: one period, no renewal. */
+export const checkout = asyncHandler(async (req: Request, res: Response) => {
+  const user = await loadUser(req);
+  assertPayable((await computeAccess(user)).reason);
   const { url } = await createCheckout(user, resolveAppUrl(req));
   res.json({ url });
 });
 
+/** Card: subscription that renews every period until cancelled. */
+export const subscribe = asyncHandler(async (req: Request, res: Response) => {
+  const user = await loadUser(req);
+  assertPayable((await computeAccess(user)).reason);
+  const { url } = await createSubscription(user, resolveAppUrl(req));
+  res.json({ url });
+});
+
 const confirmSchema = z.object({
-  paymentId: z.string().trim().min(1, 'Pagamento não informado.'),
+  paymentId: z.string().trim().min(1, 'Pagamento não informado.').max(64),
 });
 
 /**
@@ -46,7 +69,7 @@ const confirmSchema = z.object({
  */
 export const confirm = asyncHandler(async (req: Request, res: Response) => {
   const { paymentId } = confirmSchema.parse(req.body);
-  const user = await loadUser(req.userId);
+  const user = await loadUser(req);
 
   const result = await applyPaymentById(paymentId);
   if (result.userId && result.userId !== String(user._id)) {
@@ -58,8 +81,34 @@ export const confirm = asyncHandler(async (req: Request, res: Response) => {
     );
   }
 
-  const fresh = await loadUser(req.userId);
-  res.json({ paymentStatus: result.status, access: await computeAccess(fresh) });
+  res.json({ paymentStatus: result.status, access: await fullAccess(req) });
+});
+
+const confirmSubscriptionSchema = z.object({
+  preapprovalId: z.string().trim().min(1, 'Assinatura não informada.').max(64),
+});
+
+/** Back from the card authorisation page. */
+export const confirmSubscription = asyncHandler(async (req: Request, res: Response) => {
+  const { preapprovalId } = confirmSubscriptionSchema.parse(req.body);
+  const user = await loadUser(req);
+
+  const result = await syncSubscription(preapprovalId);
+  if (result.userId && result.userId !== String(user._id)) {
+    throw ApiError.forbidden('Esta assinatura pertence a outra conta.');
+  }
+
+  res.json({
+    subscriptionStatus: result.status,
+    paymentsApplied: result.applied,
+    access: await fullAccess(req),
+  });
+});
+
+export const cancel = asyncHandler(async (req: Request, res: Response) => {
+  const user = await loadUser(req);
+  const result = await cancelPlan(user);
+  res.json({ result, access: await fullAccess(req) });
 });
 
 /**
@@ -67,22 +116,27 @@ export const confirm = asyncHandler(async (req: Request, res: Response) => {
  * retries anything else, and a bad id just means there's nothing to apply.
  */
 export const webhook = asyncHandler(async (req: Request, res: Response) => {
-  const paymentId = extractWebhookPaymentId(req);
-  if (!paymentId) {
+  const event = extractWebhookEvent(req);
+  if (!event) {
     res.status(200).json({ ignored: true });
     return;
   }
-  if (!verifyWebhookSignature(req, paymentId)) {
+  if (!verifyWebhookSignature(req, event.id)) {
     res.status(401).json({ message: 'Assinatura do webhook inválida.' });
     return;
   }
 
   try {
-    const result = await applyPaymentById(paymentId);
-    res.status(200).json({ ok: true, status: result.status });
+    const result =
+      event.topic === 'payment'
+        ? await applyPaymentById(event.id)
+        : event.topic === 'subscription_preapproval'
+          ? await syncSubscription(event.id)
+          : await applyAuthorizedPayment(event.id);
+    res.status(200).json({ ok: true, topic: event.topic, status: result.status });
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.error('[billing] webhook failed', err);
+    console.error(`[billing] webhook ${event.topic}/${event.id} failed`, err);
     res.status(200).json({ ok: false });
   }
 });
