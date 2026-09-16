@@ -224,10 +224,27 @@ function startOfDay(date: Date): Date {
   return copy;
 }
 
+function endOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
+}
+
+/**
+ * Whether a despesa belongs in "contas a pagar" right now: its next open
+ * parcela falls due this month or is already late. Once this month's
+ * parcela is ticked off, the row leaves the panel and comes back when the
+ * next one is due — a card purchase in 10x is one line per month, not a
+ * permanent fixture.
+ */
+export function isDueByMonthEnd(entry: FinanceEntry, reference = new Date()): boolean {
+  const next = nextInstallment(entry);
+  return next !== undefined && startOfDay(next.dueDate) <= endOfMonth(reference);
+}
+
 export function summarizeBills(entries: FinanceEntry[], reference = new Date()): BillsSummary {
   const today = startOfDay(reference);
   const weekAhead = new Date(today);
   weekAhead.setDate(weekAhead.getDate() + 7);
+  const monthEnd = endOfMonth(reference);
 
   const summary: BillsSummary = {
     openTotal: 0,
@@ -243,9 +260,12 @@ export function summarizeBills(entries: FinanceEntry[], reference = new Date()):
     if (!next) continue;
 
     const due = startOfDay(next.dueDate);
+    // The whole debt still counts; the "open" figures only cover what is
+    // due by the end of this month (what the panel lists).
+    summary.remainingTotal += remainingAmount(entry);
+    if (due > monthEnd) continue;
     summary.openTotal += next.value;
     summary.openCount += 1;
-    summary.remainingTotal += remainingAmount(entry);
 
     if (due < today) {
       summary.overdueCount += 1;

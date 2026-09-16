@@ -8,12 +8,13 @@ import { Button } from '@/components/ui/Button';
 import { PasswordInput } from '@/components/ui/PasswordInput';
 import { useToast } from '@/context/ToastContext';
 import { authService } from '@/services/authService';
+import { passwordField, PASSWORD_HINT } from '@/utils/password';
 import { getApiErrorMessage, getApiFieldErrors } from '@/services/api';
 
 const schema = z
   .object({
     currentPassword: z.string().min(1, 'Informe sua senha atual.'),
-    newPassword: z.string().min(6, 'A nova senha deve ter ao menos 6 caracteres.'),
+    newPassword: passwordField,
     confirmPassword: z.string().min(1, 'Repita a nova senha.'),
   })
   .refine((values) => values.newPassword === values.confirmPassword, {
@@ -81,7 +82,11 @@ export function ChangePasswordCard() {
       </div>
 
       {open && (
-        <form onSubmit={handleSubmit(onSubmit)} className="mt-5 flex animate-fade-up flex-col gap-4" noValidate>
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="mt-5 flex animate-fade-up flex-col gap-4"
+          noValidate
+        >
           <PasswordInput
             label="Senha atual"
             autoComplete="current-password"
@@ -91,7 +96,7 @@ export function ChangePasswordCard() {
           <PasswordInput
             label="Nova senha"
             autoComplete="new-password"
-            hint="Mínimo de 6 caracteres."
+            hint={PASSWORD_HINT}
             error={errors.newPassword?.message}
             {...register('newPassword')}
           />

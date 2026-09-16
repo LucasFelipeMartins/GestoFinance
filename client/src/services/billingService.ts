@@ -13,10 +13,8 @@ export interface SubscribeResult {
   preapprovalId: string;
   subscriptionStatus: string;
   paymentsApplied: number;
-  /** When the card is (or was) charged for the first time. */
-  firstChargeAt: string;
-  /** False when the first charge waits for the current access to end. */
-  chargedNow: boolean;
+  /** Mercado Pago's date for the next automatic charge. */
+  nextChargeAt?: string;
   access: AccessInfo;
 }
 

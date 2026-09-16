@@ -7,6 +7,9 @@ import { Mail, User, MailCheck, ArrowLeft, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { getApiErrorMessage, getApiFieldErrors } from '@/services/api';
+import { passwordField, PASSWORD_HINT } from '@/utils/password';
+
+const CODE_LENGTH = 5;
 import { Input } from '@/components/ui/Input';
 import { PasswordInput } from '@/components/ui/PasswordInput';
 import { CodeInput } from '@/components/ui/CodeInput';
@@ -17,7 +20,7 @@ const schema = z
   .object({
     name: z.string().trim().min(2, 'O nome deve ter ao menos 2 caracteres.'),
     email: z.string().trim().min(1, 'Informe seu e-mail.').email('Informe um e-mail válido.'),
-    password: z.string().min(6, 'A senha deve ter ao menos 6 caracteres.'),
+    password: passwordField,
     confirmPassword: z.string().min(1, 'Repita a senha.'),
   })
   .refine((values) => values.password === values.confirmPassword, {
@@ -54,6 +57,7 @@ export default function Register() {
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
@@ -84,18 +88,32 @@ export default function Register() {
   };
 
   const verify = async (value: string) => {
-    if (!details || value.length !== 6 || isVerifying) return;
+    if (!details || value.length !== CODE_LENGTH || isVerifying) return;
     setIsVerifying(true);
     setCodeError(undefined);
     setServerError(undefined);
     try {
-      await registerUser({ name: details.name, email: details.email, password: details.password, code: value });
+      await registerUser({
+        name: details.name,
+        email: details.email,
+        password: details.password,
+        code: value,
+      });
       toast.success('Conta criada! Bem-vindo ao GestorFinance.');
       navigate('/', { replace: true });
     } catch (error) {
       const fields = getApiFieldErrors(error);
       if (fields?.code) {
         setCodeError(fields.code);
+      } else if (fields?.password || fields?.name || fields?.email) {
+        // The server refused something typed on the first screen (a weak
+        // password, say): go back there and point at the field instead of
+        // blaming the code.
+        for (const key of ['password', 'name', 'email'] as const) {
+          if (fields[key]) setError(key, { type: 'server', message: fields[key] });
+        }
+        setStep('details');
+        setServerError('Revise os dados destacados e peça um novo código.');
       } else {
         setServerError(getApiErrorMessage(error, 'Não foi possível criar sua conta.'));
       }
@@ -126,8 +144,9 @@ export default function Register() {
         title="Confirme seu e-mail"
         description={
           <>
-            Enviamos um código de 6 números para <strong className="text-text-primary">{details.email}</strong>.
-            Digite-o abaixo para concluir. Ele vale por {expiresIn} minutos.
+            Enviamos um código de {CODE_LENGTH} números para{' '}
+            <strong className="text-text-primary">{details.email}</strong>. Digite-o abaixo para concluir. Ele
+            vale por {expiresIn} minutos.
           </>
         }
         footer={
@@ -153,6 +172,7 @@ export default function Register() {
           </div>
 
           <CodeInput
+            length={CODE_LENGTH}
             value={code}
             onChange={(value) => {
               setCode(value);
@@ -177,7 +197,7 @@ export default function Register() {
             type="button"
             onClick={() => verify(code)}
             isLoading={isVerifying}
-            disabled={code.length !== 6}
+            disabled={code.length !== CODE_LENGTH}
             className="w-full"
           >
             Criar conta
@@ -233,7 +253,7 @@ export default function Register() {
         <PasswordInput
           label="Senha"
           autoComplete="new-password"
-          hint="Mínimo de 6 caracteres."
+          hint={PASSWORD_HINT}
           error={errors.password?.message}
           {...register('password')}
         />

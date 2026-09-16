@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { Loader2, ShieldCheck, LinkIcon } from 'lucide-react';
 import { authService } from '@/services/authService';
 import { getApiErrorMessage } from '@/services/api';
+import { passwordField } from '@/utils/password';
 import { useToast } from '@/context/ToastContext';
 import { PasswordInput } from '@/components/ui/PasswordInput';
 import { Button } from '@/components/ui/Button';
@@ -13,7 +14,7 @@ import { AuthLayout, AuthError } from '@/components/layout/AuthLayout';
 
 const schema = z
   .object({
-    password: z.string().min(6, 'A senha deve ter ao menos 6 caracteres.'),
+    password: passwordField,
     confirmPassword: z.string().min(1, 'Repita a nova senha.'),
   })
   .refine((values) => values.password === values.confirmPassword, {
@@ -23,7 +24,8 @@ const schema = z
 
 type FormValues = z.infer<typeof schema>;
 
-type LinkState = { status: 'checking' } | { status: 'valid'; email: string } | { status: 'invalid'; message: string };
+type LinkState =
+  { status: 'checking' } | { status: 'valid'; email: string } | { status: 'invalid'; message: string };
 
 /**
  * Where the e-mailed link lands. The token is checked up front so an
@@ -48,7 +50,10 @@ export default function ResetPassword() {
   useEffect(() => {
     let active = true;
     if (!token) {
-      setLink({ status: 'invalid', message: 'Este link está incompleto. Abra o link exatamente como veio no e-mail.' });
+      setLink({
+        status: 'invalid',
+        message: 'Este link está incompleto. Abra o link exatamente como veio no e-mail.',
+      });
       return;
     }
     authService
@@ -117,7 +122,7 @@ export default function ResetPassword() {
       description={
         <>
           Para a conta <strong className="text-text-primary">{link.email}</strong>. Escolha uma senha com pelo
-          menos 6 caracteres.
+          menos 8 caracteres, sem sequências ou senhas comuns.
         </>
       }
     >
@@ -138,7 +143,12 @@ export default function ResetPassword() {
 
         <AuthError message={serverError} />
 
-        <Button type="submit" isLoading={isSubmitting} leftIcon={<ShieldCheck size={18} />} className="mt-2 w-full">
+        <Button
+          type="submit"
+          isLoading={isSubmitting}
+          leftIcon={<ShieldCheck size={18} />}
+          className="mt-2 w-full"
+        >
           Salvar nova senha
         </Button>
       </form>

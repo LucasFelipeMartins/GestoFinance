@@ -72,8 +72,7 @@ export const subscribe = asyncHandler(async (req: Request, res: Response) => {
     preapprovalId: result.id,
     subscriptionStatus: result.status,
     paymentsApplied: result.applied,
-    firstChargeAt: result.firstChargeAt,
-    chargedNow: result.chargedNow,
+    nextChargeAt: result.nextChargeAt,
     access: await fullAccess(req),
   });
 });

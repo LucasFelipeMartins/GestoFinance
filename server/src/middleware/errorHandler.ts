@@ -42,7 +42,10 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
       const key = issue.path.join('.') || 'root';
       if (!fields[key]) fields[key] = issue.message;
     }
-    res.status(400).json({ message: 'Dados inválidos.', fields });
+    // Lead with the first field's message: a client that shows only the
+    // top-level text still tells the person what to fix.
+    const first = Object.values(fields)[0];
+    res.status(400).json({ message: first ? `Dados inválidos: ${first}` : 'Dados inválidos.', fields });
     return;
   }
 

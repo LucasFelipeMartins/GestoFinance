@@ -6,6 +6,7 @@ import { FinanceEntry } from '@/types';
 import {
   buildMonthlySeries,
   nextInstallment,
+  isDueByMonthEnd,
   pendingForMonth,
   summarizeBills,
   totalsForMonth,
@@ -133,9 +134,9 @@ export function useFinanceOverview(months = 5) {
       totals: totalsForMonth(entries),
       bills: summarizeBills(entries),
       pendingThisMonth: pendingForMonth(entries),
-      openBills: entries
-        .filter((entry) => nextInstallment(entry) !== undefined)
-        .sort((a, b) => dueAt(a) - dueAt(b)),
+      // Only what is due by the end of this month: a parcela already paid
+      // this month drops off until the next one comes around.
+      openBills: entries.filter((entry) => isDueByMonthEnd(entry)).sort((a, b) => dueAt(a) - dueAt(b)),
     };
   }, [query.data, months]);
 

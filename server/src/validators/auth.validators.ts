@@ -1,7 +1,12 @@
 import { z } from 'zod';
 import { newPasswordField } from '../utils/passwordPolicy';
 
-const emailField = z.string().trim().toLowerCase().max(254, 'E-mail muito longo.').email('Informe um e-mail válido.');
+const emailField = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .max(254, 'E-mail muito longo.')
+  .email('Informe um e-mail válido.');
 const nameField = z
   .string()
   .trim()
@@ -10,7 +15,7 @@ const nameField = z
 const codeField = z
   .string()
   .trim()
-  .regex(/^\d{6}$/, 'O código tem 6 números.');
+  .regex(/^\d{5}$/, 'O código tem 5 números.');
 
 /** Step 1 of sign-up: ask for the confirmation code. */
 export const requestRegisterCodeSchema = z.object({

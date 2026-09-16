@@ -154,15 +154,11 @@ export default function Subscription() {
       setCardOpen(false);
       if (result.subscriptionStatus === 'authorized') {
         setConfirming('subscribed');
-        toast.success(
-          result.chargedNow
-            ? 'Renovação automática ativada!'
-            : `Cartão salvo! A primeira cobrança será em ${formatDate(result.firstChargeAt)}, quando seu acesso atual terminar.`
-        );
-        // An immediate charge can take a few seconds to become visible at
-        // Mercado Pago; re-sync until the days show up (the webhook would
-        // apply it anyway, this just spares the person a refresh).
-        if (result.chargedNow && result.paymentsApplied === 0) {
+        toast.success('Renovação automática ativada!');
+        // The charge can take a few seconds to become visible at Mercado
+        // Pago; re-sync until the days show up (the webhook would apply it
+        // anyway, this just spares the person a refresh).
+        if (result.paymentsApplied === 0) {
           [4000, 10000].forEach((delay) =>
             setTimeout(() => {
               billingService

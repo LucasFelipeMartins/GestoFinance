@@ -67,7 +67,7 @@ APP_URL=https://seu-site.vercel.app   # endereço usado nos links dos e-mails; s
 
 ### Como testar
 
-1. Abra o site → **Criar conta** → informe um e-mail seu → deve chegar um código de 6 dígitos.
+1. Abra o site → **Criar conta** → informe um e-mail seu → deve chegar um código de 5 dígitos.
 2. Na tela de entrar → **Esqueci minha senha** → deve chegar um link que abre a tela de nova senha.
 3. Se nada chegar: veja spam/promoções, confira os logs do servidor (na Vercel: **Deployments → Logs**) —
    uma falha de autenticação SMTP ou chave inválida aparece lá como `[mail] envio falhou`.
@@ -120,13 +120,15 @@ que testa o banco (use-o num monitor de disponibilidade, ex.: UptimeRobot).
 ### 1c. Como a cobrança funciona
 
 - **Cartão** — assinatura do Mercado Pago com renovação automática. O cartão é digitado num
-  formulário do próprio Mercado Pago dentro do app (o número nunca passa pelo servidor). Quem
-  ainda tem dias de teste ou dias pagos só é cobrado quando eles acabarem. Cancelar para a
+  formulário do próprio Mercado Pago dentro do app (o número nunca passa pelo servidor). Pode-se
+  assinar a qualquer momento, inclusive durante o teste grátis: os 30 dias pagos começam a contar
+  quando o teste (ou o período anterior) terminar — nenhum dia se perde. Cancelar para a
   renovação; o acesso segue até o fim do período pago.
 - **Pix / boleto** — 30 dias avulsos, sem renovação. Cancelar um período pago por Pix devolve o
-  proporcional aos dias não usados (estorno automático; se o Mercado Pago recusar, o
-  administrador recebe um e-mail para devolver manualmente) e encerra o acesso; boleto não tem
-  estorno e o acesso segue até o fim do período.
+  proporcional aos dias **pagos** não usados (dias grátis nunca entram na conta; estorno
+  automático — se o Mercado Pago recusar, o administrador recebe um e-mail para devolver
+  manualmente) e encerra o acesso; boleto não tem estorno e o acesso segue até o fim do período.
+- **Código de confirmação** do cadastro: 5 dígitos, 15 minutos, 5 tentativas.
 
 ### 2. Você e as contas gratuitas
 

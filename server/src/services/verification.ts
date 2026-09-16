@@ -7,8 +7,11 @@ import { env } from '../config/env';
 export const REGISTER_CODE_MINUTES = 15;
 /** How long a password-reset link stays valid. */
 export const RESET_LINK_MINUTES = 30;
-/** Wrong guesses allowed before a code is discarded. Six digits with five
- * tries is a 1-in-200.000 shot — good enough alongside the rate limiter. */
+/** Digits in the e-mailed sign-up code. */
+export const REGISTER_CODE_LENGTH = 5;
+/** Wrong guesses allowed before a code is discarded. Five digits with five
+ * tries is a 1-in-20.000 shot per code; with the 60 s resend cooldown and
+ * the per-IP/per-account limiters that is far out of brute-force reach. */
 const MAX_ATTEMPTS = 5;
 /** Minimum gap between two e-mails for the same address and purpose. */
 const RESEND_COOLDOWN_SECONDS = 60;
@@ -45,7 +48,7 @@ async function assertCooldown(email: string, purpose: VerificationPurpose): Prom
 export async function issueRegistrationCode(email: string): Promise<string> {
   await assertCooldown(email, 'register');
 
-  const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
+  const code = String(randomInt(0, 10 ** REGISTER_CODE_LENGTH)).padStart(REGISTER_CODE_LENGTH, '0');
   await EmailVerification.findOneAndUpdate(
     { email, purpose: 'register' },
     {

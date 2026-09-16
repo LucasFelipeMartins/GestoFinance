@@ -261,19 +261,14 @@ export async function createSubscription(
   user: UserDocument,
   cardTokenId: string,
   appUrl: string
-): Promise<{ id: string; status: string; applied: number; firstChargeAt: string; chargedNow: boolean }> {
+): Promise<{ id: string; status: string; applied: number; nextChargeAt?: string }> {
   if (user.subscriptionId && user.subscriptionStatus === 'authorized') {
     throw ApiError.badRequest('Sua renovação automática já está ativa.');
   }
 
-  // Nobody pays for days they already have: mid-trial (or with prepaid Pix
-  // days left) the card is only charged when the current access would end.
-  // Mercado Pago then renews monthly from that date.
-  const now = Date.now();
-  const accessEnd = Math.max(user.paidUntil?.getTime() ?? 0, user.trialEndsAt?.getTime() ?? 0);
-  const chargedNow = accessEnd - now < DAY_MS;
-  const firstChargeAt = chargedNow ? new Date(now) : new Date(accessEnd);
-
+  // Charged right away, whenever the person decides to subscribe. Days
+  // already owned are not lost: the paid period starts when the trial (or
+  // the previous period) would have ended — see grantPeriod.
   const result = await mpCall('create preapproval', () =>
     new PreApproval(mpClient()).create({
       body: {
@@ -286,7 +281,6 @@ export async function createSubscription(
           frequency_type: 'months',
           transaction_amount: price(),
           currency_id: 'BRL',
-          ...(chargedNow ? {} : { start_date: firstChargeAt.toISOString() }),
         },
         back_url: `${appUrl}/assinatura`,
         status: 'authorized',
@@ -301,20 +295,17 @@ export async function createSubscription(
   user.subscriptionId = result.id;
   user.subscriptionStatus = result.status ?? 'pending';
   user.subscriptionCancelledAt = undefined;
-  user.subscriptionNextChargeAt = result.next_payment_date
-    ? new Date(result.next_payment_date)
-    : firstChargeAt;
+  user.subscriptionNextChargeAt = result.next_payment_date ? new Date(result.next_payment_date) : undefined;
   await user.save();
 
-  // An immediate first charge is usually searchable within seconds; if not
-  // yet, the page re-syncs shortly after (and the webhook applies it anyway).
-  const applied = chargedNow && result.status === 'authorized' ? await applyRecentPayments(user) : 0;
+  // The first charge is usually searchable within seconds; if not yet, the
+  // page re-syncs shortly after (and the webhook applies it anyway).
+  const applied = result.status === 'authorized' ? await applyRecentPayments(user) : 0;
   return {
     id: result.id,
     status: result.status ?? 'pending',
     applied,
-    firstChargeAt: (user.subscriptionNextChargeAt ?? firstChargeAt).toISOString(),
-    chargedNow,
+    nextChargeAt: user.subscriptionNextChargeAt?.toISOString(),
   };
 }
 

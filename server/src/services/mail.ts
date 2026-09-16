@@ -147,7 +147,7 @@ export function registrationCodeEmail(input: {
   minutes: number;
 }): MailMessage {
   const firstName = input.name.trim().split(/\s+/)[0] || 'Olá';
-  const digits = input.code.split('').join(' ');
+  const digits = input.code;
 
   const text =
     `${firstName}, seu código de confirmação do GestorFinance é: ${input.code}\n\n` +
@@ -161,7 +161,7 @@ export function registrationCodeEmail(input: {
         ${escapeHtml(firstName)}, use o código abaixo para confirmar seu e-mail e concluir a criação da sua conta.
      </p>
      <div style="margin:0 0 20px;padding:18px;border-radius:14px;background:${BRAND_TINT};text-align:center;">
-        <span style="font-size:32px;letter-spacing:6px;font-weight:700;color:${BRAND_DARK};font-variant-numeric:tabular-nums;">${escapeHtml(digits)}</span>
+        <span style="font-size:32px;letter-spacing:10px;font-weight:700;color:${BRAND_DARK};font-variant-numeric:tabular-nums;">${escapeHtml(digits)}</span>
      </div>
      <p style="margin:0;font-size:13px;line-height:1.6;color:#66705F;">
         O código vale por ${input.minutes} minutos. Se você não pediu este código, ignore esta mensagem.

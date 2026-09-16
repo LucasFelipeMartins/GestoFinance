@@ -13,7 +13,7 @@ interface CodeInputProps {
 }
 
 /**
- * The six boxes for the e-mailed confirmation code.
+ * The boxes for the e-mailed confirmation code (one per digit).
  *
  * One box per digit rather than a single input: it reads as "type the code
  * you got", pasting the whole code fills every box at once, and the numeric
